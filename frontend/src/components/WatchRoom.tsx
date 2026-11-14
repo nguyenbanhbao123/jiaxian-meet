@@ -9,6 +9,7 @@ import { Avatar, IconButton, RoomDialog } from "./watch-room/RoomUI";
 export default function WatchRoom({ onLeave }: { onLeave: () => void }) {
   const [dialog, setDialog] = useState<"about" | "participants" | "video-states" | null>(null);
   const [theater, setTheater] = useState(false);
+  const [showChat, setShowChat] = useState(true);
 
   return (
     <div className="watch-room room-shell min-h-dvh bg-room-base text-room-text">
@@ -115,13 +116,58 @@ export default function WatchRoom({ onLeave }: { onLeave: () => void }) {
               <VideoPlayer theater={theater} onToggleTheater={() => setTheater((value) => !value)} />
               <VoicePanel onLeave={onLeave} />
             </div>
-            <div className="room-chat-slot min-w-0"><ChatSidebar /></div>
+            
+            {showChat && (
+              <div className="room-chat-slot min-w-0 max-h-[63vh]">
+                <ChatSidebar />
+              </div>
+            )}
 
-            <footer className="room-footer flex flex-wrap items-center justify-between gap-2 text-xs leading-relaxed text-room-muted">
-              <span className="flex items-center gap-2">
+            {/* Changed footer to handle the non-absolute control bar */}
+            <footer className="room-footer flex flex-wrap items-end justify-between gap-2 text-xs leading-relaxed text-room-muted">
+              <span className="flex items-center gap-2 mb-1">
                 <RoomIcon name="lock" className="h-3.5 w-3.5" /> Your video stays on your device.
               </span>
-              <span className="hidden sm:inline">Made for movie nights. Just us, just here.</span>
+              
+              <div className="hidden sm:flex flex-col items-end gap-3">
+                
+                {/* 3. The control bar seamlessly embedded into the layout */}
+                <div className="flex items-center gap-1 rounded-full bg-[#1e1e20] px-2 py-1.5 shadow-lg border border-white/5 -translate-y-16 -translate-x-2">
+                  
+                  {/* Chat Button (Active toggle) */}
+                  <button 
+                    onClick={() => setShowChat((prev) => !prev)}
+                    aria-label={showChat ? "Close chat" : "Open chat"} 
+                    className={`flex h-[42px] w-[42px] items-center justify-center rounded-full transition-colors ${
+                      showChat ? "bg-[#a8c7fa]/15 text-[#a8c7fa]" : "text-gray-300 hover:bg-[#333438]"
+                    }`}
+                  >
+                    <RoomIcon name="chat" className="h-5 w-5" />
+                  </button>
+
+                  {/* Activities / Grid Button */}
+                  <button 
+                    aria-label="Activities"
+                    className="flex h-[42px] w-[42px] items-center justify-center rounded-full text-gray-300 transition-colors hover:bg-[#333438]"
+                  >
+                    <svg className="h-[22px] w-[22px] fill-current" viewBox="0 0 24 24">
+                      <path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z" />
+                    </svg>
+                  </button>
+
+                  {/* Host Controls Button */}
+                  <button 
+                    aria-label="Host controls"
+                    className="flex h-[42px] w-[42px] items-center justify-center rounded-full text-gray-300 transition-colors hover:bg-[#333438]"
+                  >
+                    <svg className="h-[22px] w-[22px] fill-current" viewBox="0 0 24 24">
+                      <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <span className="hidden sm:inline mr-2">Made for movie nights. Just us, just here.</span>
+              </div>
             </footer>
           </div>
         </div>
