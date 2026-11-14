@@ -1,1 +1,307 @@
 @import "tailwindcss";
+
+/* Room-only semantic tokens. The original home page keeps its own theme. */
+@theme {
+  --color-room-base: #111318;
+  --color-room-panel: #1B1E25;
+  --color-room-canvas: #050608;
+  --color-room-raised: #232730;
+  --color-room-text: #F5F5F5;
+  --color-room-muted: #A5AAB5;
+  --color-room-accent: #DFCEA2;
+  --color-room-accent-hover: #EFDFB8;
+  --color-room-accent-active: #CBBA91;
+  --color-room-border: #30343E;
+  --color-room-control-border: #697080;
+  --color-room-track: #747C8C;
+  --color-room-success: #A9C7B2;
+  --color-room-danger: #F1A4A4;
+  --color-room-avatar-gold: #DFCEA2;
+  --color-room-avatar-gold-ink: #393021;
+  --color-room-avatar-sage: #AEC5B7;
+  --color-room-avatar-sage-ink: #26392D;
+  --font-room: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  --radius-room-panel: 1rem;
+  --radius-room-control: 0.625rem;
+  --spacing-room-control: 2.75rem;
+  --text-room-body: 0.875rem;
+  --text-room-body--line-height: 1.6;
+  --text-room-caption: 0.75rem;
+  --text-room-caption--line-height: 1.5;
+  --text-room-label: 0.6875rem;
+  --text-room-label--line-height: 1.5;
+}
+
+.watch-room {
+  /* Component tokens retain a 4px spacing rhythm and 44px control targets. */
+  --room-gutter: 1.25rem;
+  --room-layout-gap: 1.25rem;
+  --room-chat-width: 20rem;
+  --room-control-size: var(--spacing-room-control);
+  --room-control-radius: var(--radius-room-control);
+  --room-control-hover: color-mix(in srgb, var(--color-room-text) 7%, transparent);
+  --room-control-active: color-mix(in srgb, var(--color-room-text) 11%, transparent);
+  --room-control-selected: color-mix(in srgb, var(--color-room-accent) 12%, transparent);
+  --room-motion-duration: 160ms;
+  font-family: var(--font-room);
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+
+.watch-room :where(button, a, input[type="range"]) { cursor: pointer; }
+.watch-room :where(button:disabled, input:disabled) { cursor: not-allowed; }
+.watch-room :where(button, a, input, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-room-accent);
+  outline-offset: 3px;
+}
+.watch-room ::selection {
+  background: color-mix(in srgb, var(--color-room-accent) 25%, transparent);
+  color: var(--color-room-text);
+}
+
+/* Keep component styles in a layer so responsive Tailwind utilities can override them. */
+@layer components {
+  .watch-room .room-container {
+    width: 100%;
+    max-width: 1600px;
+    margin-inline: auto;
+    padding-inline: var(--room-gutter);
+  }
+  .watch-room .room-content { margin-inline: auto; }
+  .watch-room .room-main { padding-block: 1.25rem; }
+  .watch-room .room-context { margin-bottom: 1rem; }
+  .watch-room .room-main-column { display: flex; flex-direction: column; gap: 1rem; }
+  .watch-room .room-main-column > :last-child { flex-shrink: 0; }
+  .watch-room .room-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--room-layout-gap);
+  }
+  .watch-room .room-chat-slot { height: 36rem; }
+  .watch-room .room-footer { grid-column: 1 / -1; }
+  .watch-room .room-video-slot {
+    display: grid;
+    place-items: center;
+    background: var(--color-room-canvas);
+  }
+  .watch-room .room-video-stage { width: 100%; }
+  .watch-room .room-player-controls,
+  .watch-room .room-player-meta,
+  .watch-room .room-player > [role="status"] { flex-shrink: 0; }
+  .watch-room .room-panel {
+    border: 1px solid var(--color-room-border);
+    border-radius: var(--radius-room-panel);
+    background: var(--color-room-panel);
+  }
+  .watch-room .room-eyebrow {
+    font-size: var(--text-room-label);
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .watch-room .room-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: var(--text-room-label);
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+  .watch-room :where(.room-control, .room-button-primary, .room-secondary-button, .room-danger-button) {
+    display: inline-flex;
+    min-height: var(--room-control-size);
+    min-width: var(--room-control-size);
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: var(--room-control-radius);
+    font-weight: 500;
+    line-height: 1.5;
+    transition: background-color var(--room-motion-duration), color var(--room-motion-duration), border-color var(--room-motion-duration);
+  }
+  .watch-room .room-control { color: var(--color-room-muted); }
+  .watch-room .room-icon-button { width: var(--room-control-size); flex-shrink: 0; }
+  .watch-room .room-control:enabled:hover {
+    background: var(--room-control-hover);
+    color: var(--color-room-text);
+  }
+  .watch-room .room-control:enabled:active { background: var(--room-control-active); }
+  .watch-room .room-control[aria-pressed="true"] {
+    background: var(--room-control-selected);
+    color: var(--color-room-accent);
+  }
+  .watch-room .room-button-primary {
+    border: 1px solid transparent;
+    background: var(--color-room-accent);
+    color: var(--color-room-base);
+    padding: 8px 16px;
+    font-size: var(--text-room-body);
+    font-weight: 600;
+  }
+  .watch-room .room-button-primary:enabled:hover { background: var(--color-room-accent-hover); }
+  .watch-room .room-button-primary:enabled:active { background: var(--color-room-accent-active); }
+  .watch-room :where(.room-secondary-button, .room-danger-button) {
+    border: 1px solid var(--color-room-control-border);
+    background: var(--color-room-raised);
+    color: var(--color-room-text);
+    padding: 8px 12px;
+    font-size: var(--text-room-caption);
+  }
+  .watch-room .room-secondary-button:where(:enabled, a):hover { background: var(--color-room-border); }
+  .watch-room .room-secondary-button:where(:enabled, a):active { background: var(--room-control-active); }
+  .watch-room .room-secondary-button[aria-pressed="true"] {
+    border-color: var(--color-room-danger);
+    background: color-mix(in srgb, var(--color-room-danger) 12%, var(--color-room-panel));
+    color: var(--color-room-danger);
+  }
+  .watch-room .room-danger-button {
+    border-color: color-mix(in srgb, var(--color-room-danger) 65%, var(--color-room-panel));
+    background: color-mix(in srgb, var(--color-room-danger) 8%, var(--color-room-panel));
+    color: var(--color-room-danger);
+  }
+  .watch-room .room-danger-button:enabled:hover { background: color-mix(in srgb, var(--color-room-danger) 16%, var(--color-room-panel)); }
+  .watch-room .room-danger-button:enabled:active { background: color-mix(in srgb, var(--color-room-danger) 22%, var(--color-room-panel)); }
+  .watch-room :where(.room-control, .room-button-primary, .room-secondary-button, .room-danger-button):disabled {
+    opacity: 0.4;
+    box-shadow: none;
+  }
+  .watch-room .room-skip-link {
+    position: absolute;
+    top: -100px;
+    left: var(--room-gutter);
+    z-index: 50;
+    border-radius: var(--room-control-radius);
+    background: var(--color-room-accent);
+    color: var(--color-room-base);
+    padding: 12px 20px;
+  }
+  .watch-room .room-skip-link:focus { top: 12px; }
+  .watch-room .room-dialog {
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .watch-room .room-dialog::backdrop { background: #000B; backdrop-filter: blur(5px); }
+  .watch-room .room-range {
+    height: var(--room-control-size);
+    min-width: 0;
+    appearance: none;
+    border-radius: var(--room-control-radius);
+    background: transparent;
+    touch-action: pan-y;
+  }
+  .watch-room .room-range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 4px;
+    background: linear-gradient(to right, var(--color-room-accent) var(--range-progress, 0%), var(--color-room-track) var(--range-progress, 0%));
+  }
+  .watch-room .room-range::-moz-range-track { height: 4px; border-radius: 4px; background: var(--color-room-track); }
+  .watch-room .room-range::-moz-range-progress { height: 4px; background: var(--color-room-accent); }
+  .watch-room .room-range::-webkit-slider-thumb {
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+    appearance: none;
+    border: none;
+    border-radius: 50%;
+    background: var(--color-room-accent);
+  }
+  .watch-room .room-range::-moz-range-thumb { width: 12px; height: 12px; border: none; border-radius: 50%; background: var(--color-room-accent); }
+  .watch-room .room-range:disabled { opacity: 0.4; }
+  .watch-room .room-chat-scroll { scrollbar-width: thin; scrollbar-color: var(--color-room-control-border) transparent; }
+  .watch-room .room-chat-scroll:focus-visible { outline-offset: -4px; }
+  .watch-room .room-canvas:fullscreen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 0;
+    border-radius: 0;
+    background: var(--color-room-canvas);
+  }
+  .watch-room .room-canvas:fullscreen .room-video-slot {
+    container: room-screen / size;
+    min-height: 0;
+    flex: 1;
+  }
+  .watch-room .room-canvas:fullscreen .room-video-stage {
+    width: min(100%, calc(100cqh * 16 / 9));
+  }
+  .watch-room .room-canvas:fullscreen video { object-fit: contain; }
+
+  @media (min-width: 640px) {
+    .watch-room { --room-gutter: 2rem; }
+  }
+  @media (min-width: 1024px) {
+    .watch-room .room-workspace { grid-template-columns: minmax(0, 1fr) var(--room-chat-width); }
+    .watch-room .room-chat-slot { position: relative; height: auto; min-height: 0; }
+    .watch-room .room-chat-slot > aside { position: absolute; inset: 0; }
+    .watch-room .room-workspace--theater { grid-template-columns: minmax(0, 1fr); }
+    .watch-room .room-workspace--theater .room-chat-slot { position: static; height: 36rem; }
+    .watch-room .room-workspace--theater .room-chat-slot > aside { position: static; }
+  }
+
+  @media (min-width: 1024px) and (min-height: 640px) {
+    /* Allocate actual remaining viewport space instead of estimating a fixed
+       allowance. Intrinsic minimums can grow the document for exceptional text. */
+    .watch-room.room-shell {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      height: 100dvh;
+      overflow-y: auto;
+    }
+    .watch-room.room-shell .room-main { min-height: 0; padding-block: 0.75rem; }
+    .watch-room.room-shell .room-content { display: flex; height: 100%; min-height: 0; flex-direction: column; }
+    .watch-room.room-shell .room-context { flex-shrink: 0; margin-bottom: 0.75rem; }
+    .watch-room.room-shell .room-workspace {
+      flex: 1;
+      min-height: min-content;
+      grid-template-rows: minmax(min-content, 1fr) auto;
+      row-gap: 0.75rem;
+    }
+    .watch-room.room-shell .room-main-column { min-height: min-content; gap: 0.75rem; }
+    .watch-room.room-shell .room-player,
+    .watch-room.room-shell .room-canvas {
+      display: flex;
+      flex: 1;
+      min-height: min-content;
+      flex-direction: column;
+    }
+    .watch-room.room-shell .room-video-slot {
+      container: room-screen / size;
+      flex: 1;
+      min-height: 12rem;
+    }
+    .watch-room.room-shell .room-video-stage { width: min(100%, calc(100cqh * 16 / 9)); }
+    /* Theater keeps the player and voice in the first viewport, then places
+       chat and the footer in flowing rows below. Nothing overlays the player. */
+    .watch-room.room-shell .room-workspace--theater {
+      min-height: 0;
+      grid-template-rows: minmax(min-content, 100%) auto auto;
+    }
+  }
+}
+
+/* Only decoration and whitespace compact when the fitted display gets short. */
+@container room-screen (max-height: 22rem) {
+  .watch-room .room-empty-state { padding-block: 0.75rem; }
+  .watch-room .room-empty-icon { width: 2.5rem; height: 2.5rem; margin-bottom: 0.5rem; }
+  .watch-room .room-empty-copy { margin-bottom: 0.75rem; }
+  .watch-room .room-empty-hint { display: none; }
+}
+@container room-screen (max-height: 16rem) {
+  .watch-room .room-empty-icon,
+  .watch-room .room-video-label { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watch-room *, .watch-room *::before, .watch-room *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

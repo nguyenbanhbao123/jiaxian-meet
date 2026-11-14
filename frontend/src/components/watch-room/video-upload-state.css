@@ -1,0 +1,22 @@
+.watch-room .video-state-progress {
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-room-control-border);
+  accent-color: var(--color-room-accent);
+}
+.watch-room .video-state-progress::-webkit-progress-bar {
+  border-radius: inherit;
+  background: var(--color-room-control-border);
+}
+.watch-room .video-state-progress::-webkit-progress-value {
+  border-radius: inherit;
+  background: var(--color-room-accent);
+}
+.watch-room .video-state-progress::-moz-progress-bar {
+  border-radius: inherit;
+  background: var(--color-room-accent);
+}
