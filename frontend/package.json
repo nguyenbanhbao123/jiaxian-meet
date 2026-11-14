@@ -1,0 +1,36 @@
+{
+  "name": "jiaxian-meet",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nguyenbanhbao123/jiaxian-meet.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nguyenbanhbao123/jiaxian-meet/issues"
+  },
+  "homepage": "https://github.com/nguyenbanhbao123/jiaxian-meet#readme",
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}
