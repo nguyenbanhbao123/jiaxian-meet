@@ -18,8 +18,10 @@ jiaxian-meet-git/
     │   ├── components/
     │   │   ├── MeetHome.tsx         # Home and room-entry UI
     │   │   ├── WatchRoom.tsx        # Watch Room layout and actions
-    │   │   ├── home/               # Create/Join demos, illustration, scoped styles
-    │   │   └── watch-room/         # Local player, chat, voice, video-state previews
+    │   │   ├── SignUp.tsx           # Main Sign-Up / Log-In page layout wrapper
+    │   │   ├── home/                # Create/Join demos, illustration, scoped styles
+    │   │   ├── watch-room/          # Local player, chat, voice, video-state previews
+    │   │   └── auth/                # Authentication UI components (login/signup form and social buttons)
     │   ├── App.tsx
     │   ├── main.tsx
     │   └── index.css
