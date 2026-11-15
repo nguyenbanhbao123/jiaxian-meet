@@ -8,6 +8,7 @@ import "./home/home.css";
 
 type MeetHomeProps = {
   onPreviewWatchRoom: () => void;
+  onNavigateSignUp: () => void;
 };
 
 const MOVIE_NIGHT_DETAILS: { icon: RoomIconName; title: string; description: string }[] = [
@@ -28,7 +29,7 @@ const MOVIE_NIGHT_DETAILS: { icon: RoomIconName; title: string; description: str
   },
 ];
 
-export default function MeetHome({ onPreviewWatchRoom }: MeetHomeProps) {
+export default function MeetHome({ onPreviewWatchRoom, onNavigateSignUp }: MeetHomeProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const detailsRef = useRef<HTMLElement>(null);
 
@@ -84,11 +85,14 @@ export default function MeetHome({ onPreviewWatchRoom }: MeetHomeProps) {
             </span>
           </a>
           <nav aria-label="Home navigation" className="flex items-center gap-2 sm:gap-5">
-            <button type="button" className="room-control hidden px-3 text-sm md:inline-flex" onClick={showDetails}>
+            <button type="button" className="room-control hidden px-3 text-base md:inline-flex" onClick={onNavigateSignUp}>
+              Login
+            </button>
+            <button type="button" className="room-control hidden px-3 text-base md:inline-flex" onClick={showDetails}>
               How it works
             </button>
-            <button type="button" className="room-secondary-button" onClick={onPreviewWatchRoom}>
-              Explore demo <RoomIcon name="arrow" className="h-4 w-4" />
+            <button type="button" className="room-secondary-button text-sm" onClick={onPreviewWatchRoom}>
+              Explore demo <RoomIcon name="arrow" className="h-5 w-5" />
             </button>
           </nav>
         </div>
