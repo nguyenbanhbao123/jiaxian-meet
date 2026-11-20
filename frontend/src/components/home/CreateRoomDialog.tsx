@@ -16,7 +16,6 @@ export default function CreateRoomDialog({ sampleRoomCode, onClose, onEnterWatch
   const codeRef = useRef<HTMLInputElement>(null);
   const mounted = useRef(false);
   const codeId = useId();
-  const hintId = useId();
   const copyStatusId = useId();
 
   useEffect(() => {
@@ -41,26 +40,20 @@ export default function CreateRoomDialog({ sampleRoomCode, onClose, onEnterWatch
   }
 
   const copyMessage = copyState === "copied"
-    ? "Sample code copied. It won’t open a real room."
+    ? "Sample code copied."
     : copyState === "error"
       ? "Automatic copying isn’t available. The sample code is selected; use your device’s Copy command."
       : copyState === "copying"
         ? "Copying the sample code…"
-        : "Copy this sample to try the invitation UI.";
+        : "";
 
   return (
-    <RoomDialog title="Room invitation preview" onClose={onClose}>
-      <div className="mb-4 flex items-center gap-2">
-        <span className="room-badge border border-room-accent/25 bg-room-accent/5 text-room-accent">Demo only</span>
-        <span className="text-xs text-room-muted">A little room for two.</span>
-      </div>
-      <p className="text-sm leading-relaxed text-room-muted">
-        Preview an invitation for your next movie night. No real room has been created.
-      </p>
+    <RoomDialog title="Room invitation" onClose={onClose}>
+      <p className="text-sm text-room-muted">Demo invitation · Opens on this device only.</p>
 
-      <div className="mt-5 rounded-xl border border-room-accent/25 bg-room-base p-4">
+      <div className="mt-4 rounded-xl border border-room-border bg-room-base p-4">
         <label htmlFor={codeId} className="block text-xs font-medium text-room-muted">Sample room code</label>
-        <div className="mt-2 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-2 flex min-w-0 flex-col gap-2 min-[460px]:flex-row min-[460px]:items-center">
           <input
             ref={codeRef}
             id={codeId}
@@ -68,7 +61,7 @@ export default function CreateRoomDialog({ sampleRoomCode, onClose, onEnterWatch
             value={sampleRoomCode}
             readOnly
             spellCheck={false}
-            aria-describedby={`${hintId} ${copyStatusId}`}
+            aria-describedby={copyStatusId}
             onFocus={(event) => event.currentTarget.select()}
             className="min-h-11 w-full min-w-0 flex-1 rounded-md bg-transparent font-mono text-xl tracking-[0.08em] text-room-accent"
           />
@@ -89,30 +82,17 @@ export default function CreateRoomDialog({ sampleRoomCode, onClose, onEnterWatch
             {copyState === "copied" ? "Copied" : copyState === "copying" ? "Copying…" : "Copy code"}
           </button>
         </div>
-        <p id={hintId} className="mt-2 text-xs leading-relaxed text-room-muted">Example only. This code isn’t a valid invitation.</p>
       </div>
 
-      <p id={copyStatusId} role="status" aria-atomic="true" className={`mt-3 text-xs leading-relaxed ${copyState === "error" ? "text-room-accent" : copyState === "copied" ? "text-room-success" : "text-room-muted"}`}>
+      <p id={copyStatusId} role="status" aria-atomic="true" className={`empty:hidden mt-2 text-xs leading-relaxed ${copyState === "error" ? "text-room-accent" : copyState === "copied" ? "text-room-success" : "text-room-muted"}`}>
         {copyMessage}
       </p>
 
-      <div className="mt-5 flex items-start gap-3 rounded-xl border border-room-border p-4">
-        <RoomIcon name="users" className="mt-0.5 h-5 w-5 shrink-0 text-room-accent" />
-        <div>
-          <h3 className="text-sm font-medium">An invitation to a night in</h3>
-          <p className="mt-1 text-sm leading-relaxed text-room-muted">
-            In the full experience, share a code with your friend to invite them. This sample won’t connect anyone.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-6 flex flex-col gap-2">
+      <div className="mt-4">
         <button type="button" className="room-button-primary w-full" onClick={onEnterWatchRoom}>
           Enter Watch Room <RoomIcon name="arrow" className="h-4 w-4" />
         </button>
-        <button type="button" className="room-secondary-button w-full" onClick={onClose}>Close</button>
       </div>
-      <p className="mt-3 text-center text-xs leading-relaxed text-room-muted">Opens the local demo. No shared session.</p>
     </RoomDialog>
   );
 }

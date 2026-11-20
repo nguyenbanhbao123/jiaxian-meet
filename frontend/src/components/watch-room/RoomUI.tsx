@@ -23,7 +23,28 @@ export function RoomDialog({ title, children, onClose, size = "default" }: { tit
     };
   }, []);
 
-  return <dialog ref={ref} aria-labelledby={titleId} onCancel={onClose} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }} className={`room-dialog room-panel m-auto w-[calc(100%-2rem)] ${size === "wide" ? "max-w-3xl" : "max-w-md"} p-6 text-room-text shadow-2xl`}>
+  return <dialog ref={ref} aria-labelledby={titleId} onCancel={onClose}
+    onKeyDown={event => {
+      if (event.key !== "Tab") return;
+      const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+        'button:enabled, a[href], input:enabled, select:enabled, textarea:enabled, [tabindex="0"]'
+      )).filter(element => element.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }}
+    onClick={event => {
+      if (event.target !== event.currentTarget) return;
+      const box = event.currentTarget.getBoundingClientRect();
+      if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) onClose();
+    }}
+    className={`room-dialog room-panel m-auto w-[calc(100%-2rem)] ${size === "wide" ? "max-w-3xl" : "max-w-md"} p-6 text-room-text`}>
     <div className="mb-5 flex items-center justify-between gap-4"><h2 id={titleId} className="text-xl font-semibold">{title}</h2><IconButton label="Close dialog" onClick={onClose}><RoomIcon name="close" /></IconButton></div>
     {children}
   </dialog>;

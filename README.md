@@ -1,6 +1,6 @@
 # jiaxian-meet
 
-A private movie-night website built with React, TypeScript, Vite and Tailwind CSS v4. The current frontend includes a cinematic Home page, Create Room and Join Room demos, a local Watch Room, and video-state UI previews.
+A private movie-night website built with React, TypeScript, Vite and Tailwind CSS v4. The current frontend includes room entry, a video-first local Watch Room, a Guide, and video-state UI previews.
 
 **Frontend demo only:** real room management, server sessions, file sharing, playback synchronization, and voice communication are not implemented or connected in this frontend. Sample codes, participants, chat, and upload states do not represent real shared rooms or transfers. Backend development is handled separately; see [Backend](#backend).
 
@@ -10,21 +10,25 @@ A private movie-night website built with React, TypeScript, Vite and Tailwind CS
 jiaxian-meet-git/
 ├── README.md
 ├── docs/
+│   ├── feature-audit.md
+│   ├── minimal-ui-redesign.md
 │   ├── home-ui.md
 │   ├── watch-room-refinement.md
 │   └── video-upload-ui.md
 └── frontend/
     ├── src/
     │   ├── components/
+    │   │   ├── Guide.tsx            # Local feature guide
     │   │   ├── MeetHome.tsx         # Home and room-entry UI
     │   │   ├── WatchRoom.tsx        # Watch Room layout and actions
-    │   │   ├── SignUp.tsx           # Main Sign-Up / Log-In page layout wrapper
+    │   │   ├── SignUp.tsx           # Original Login / Sign Up layout
     │   │   ├── home/                # Create/Join demos, illustration, scoped styles
     │   │   ├── watch-room/          # Local player, chat, voice, video-state previews
     │   │   └── auth/                # Authentication UI components (login/signup form and social buttons)
     │   ├── App.tsx
     │   ├── main.tsx
     │   └── index.css
+    ├── tests/                # Chromium regression suite and generated video fixture
     ├── index.html
     ├── package.json
     ├── package-lock.json
@@ -75,30 +79,18 @@ lowercase and surrounding whitespace, and shows inline empty/invalid/valid state
 Matching input starts a **900ms simulated joining state**, then opens the existing
 local Watch Room. Use **Cancel demo join** to stop it. All matching demo codes open
 the same sample view; no room is looked up, verified, created, or joined.
-**Explore demo** and **Take a look** still open the Watch Room directly.
 
-You can also open <http://localhost:5173/#watch-room> directly. Use **Home preview**,
-the Jiaxian Meet logo, or **Leave room** to return Home. Browser back/forward also
-switches views. Home uses the same cinematic dark theme and champagne-gold accents
-as the Watch Room, with responsive layouts and accessible form/dialog controls.
+Open <http://localhost:5173/#watch-room> for direct entry or <http://localhost:5173/#guide> for instructions. The question-mark button opens Guide from Home or the room. Back restores the originating screen. The logo and Leave return Home.
 
-- **Video:** choose or drop a local video file. Play/pause, timeline seeking,
-  mute, volume, playback speed, fullscreen, and theater view operate locally.
-  Playback and seeking are disabled until a playable video is ready. Container
-  and codec support depend on your browser; MP4/H.264 and WebM are good starting
-  points. File errors appear in the player. Object URLs are revoked when a video
-  is replaced or the room is closed.
-- **Chat:** initial messages and participants are mock data. Send adds a local
-  message; Enter sends, Shift+Enter adds a line, and the smile button appends `:)`.
-  There are no simulated replies.
-- **Voice:** the microphone toggle changes demo UI state only. No microphone is
-  accessed and no audio connection is established.
-- **Room actions:** participant details and prototype information open in
-  keyboard-accessible dialogs. Theater view expands the player above the chat.
+- Choose or drop a local file. Playback, seeking, volume, speed, fullscreen and theater view operate on the browser media element. Change video replaces the file.
+- Chat opens beside the player on desktop and below it on smaller screens. Enter sends locally, Shift+Enter adds a line and the smile button appends ` :)`. The sample incoming message is labeled.
+- The microphone switch previews on and off states. No audio connection is established.
+- Visiting Guide pauses playback and preserves the file, position, chat history and draft. Leaving the room or reloading resets these.
+- Home and Guide link to **Log In** (`#login`) and **Sign Up** (`#sign-up`). Each opens its matching original form. Switching modes updates the hash and supports refresh and browser history. Form submission stays local and creates no session. Google and Apple have no provider handlers. The original Forgot password link returns Home and sends no reset email.
 
 ## Preview video UI states
 
-In the Watch Room, click **Video UI states**, then use **Preview state** to inspect
+In the Watch Room, open **Room settings → Preview video UI states**, then use **Preview state** to inspect
 Empty, Uploading, Ready, Error, and Waiting for host. All five are explicitly
 labeled UI-only previews and use static sample metadata.
 
@@ -121,18 +113,11 @@ only in the current room preview. Returning home or refreshing resets selected
 media, messages, and demo controls. These UI demos do not establish backend or
 WebRTC connections.
 
-The refinement keeps the same cinematic palette while using a shorter room
-header, a 16:9 player sized for desktop viewport height, a compact voice dock,
-and independently scrollable chat. At tablet widths, chat follows the player.
-
 ## Design handoff documents
 
-- [Home, Create Room, and Join Room UI handoff](docs/home-ui.md): demo behavior,
-  component boundaries, validation, and room-management integration points.
-- [Watch Room design and QA notes](docs/watch-room-refinement.md): visual tokens,
-  responsive player layout, accessibility, and verification limits.
-- [Video Upload UI states handoff](docs/video-upload-ui.md): the five UI-only
-  states, preview controls, reusable component API, and file-transfer integration points.
+- [Current feature audit](docs/feature-audit.md) records baseline failures, delivered status, priority and dependencies.
+- [Minimal UI redesign](docs/minimal-ui-redesign.md) covers the current interface, state boundaries and regression checks.
+- Earlier handoffs cover [Home](docs/home-ui.md), [Watch Room](docs/watch-room-refinement.md) and [video state fixtures](docs/video-upload-ui.md). Use the current handoff for navigation and layout.
 
 ## Scripts
 
@@ -141,6 +126,7 @@ and independently scrollable chat. At tablet widths, chat follows the player.
 | `npm run dev`     | Start the dev server with hot reload          |
 | `npm run build`   | Create a production build in `frontend/dist`  |
 | `npm run preview` | Serve the production build locally            |
+| `npm test`        | Exercise the frontend in headless Chrome      |
 
 ## Troubleshooting
 
@@ -154,13 +140,13 @@ and independently scrollable chat. At tablet widths, chat follows the player.
 Run these commands from `frontend`:
 
 ```bash
+npm ci
 npx tsc --noEmit
 npm run build
+npm test
 ```
 
-TypeScript uses the existing `frontend/tsconfig.json`; the production build is
-written to `frontend/dist`. Browser visual and interaction verification is
-separate from these checks; see the handoff documents for current QA limits.
+The build writes to `frontend/dist`. Tests start and close a local test server and use installed Chrome through the development-only Playwright driver. Set `CHROME_PATH` to use a different Chromium executable.
 
 ## Backend
 

@@ -1,55 +1,70 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import MeetHome from "./components/MeetHome";
 import WatchRoom from "./components/WatchRoom";
-import SignUp from "./components/SignUp"; // Ensure you import your new component
+import SignUp from "./components/SignUp";
+import Guide from "./components/Guide";
 
-type ViewState = "home" | "room" | "signup";
+type Page = "home" | "watch-room" | "sign-up" | "login";
+type Route = { page: Page; guide: boolean };
 
-const getViewFromHash = (): ViewState => {
-  const hash = window.location.hash;
-  if (hash === "#watch-room") return "room";
-  if (hash === "#sign-up") return "signup";
-  return "home";
-};
+function isAccountPage(page: string) {
+  return page === "login" || page === "sign-up";
+}
+
+function readRoute(): Route {
+  const hash = location.hash.slice(1);
+  const guide = hash === "guide";
+  const page = guide ? history.state?.guideFrom : hash;
+  return { page: page === "watch-room" || isAccountPage(page) ? page : "home", guide };
+}
 
 export default function App() {
-  const [view, setView] = useState<ViewState>(getViewFromHash);
-  const previousView = useRef(view);
-
+  const [route, setRoute] = useState(readRoute);
+  const previous = useRef(route);
   useEffect(() => {
-    if (previousView.current === view) return;
-    previousView.current = view;
-    
-    let selector = "#home-main";
-    if (view === "room") selector = "#room-main";
-    if (view === "signup") selector = "#signup-main";
-
-    const destination = document.querySelector<HTMLElement>(selector);
-    destination?.focus({ preventScroll: true });
-  }, [view]);
-
-  useEffect(() => {
-    const updateView = () => setView(getViewFromHash());
-    window.addEventListener("hashchange", updateView);
-    return () => window.removeEventListener("hashchange", updateView);
+    const sync = () => setRoute(readRoute());
+    window.addEventListener("hashchange", sync);
+    window.addEventListener("popstate", sync);
+    return () => {
+      window.removeEventListener("hashchange", sync);
+      window.removeEventListener("popstate", sync);
+    };
   }, []);
 
-  function navigate(next: ViewState) {
-    if (next === "room") window.location.hash = "watch-room";
-    else if (next === "signup") window.location.hash = "sign-up";
-    else window.location.hash = "home";
-    
-    setView(next);
-    window.scrollTo(0, 0);
+  useLayoutEffect(() => {
+    const last = previous.current;
+    const mainId = { home: "home-main", "watch-room": "room-main", "sign-up": "signup-main", login: "signup-main" }[route.page];
+    const name = route.guide ? "Guide" : { home: "Home", "watch-room": "Watch room", "sign-up": "Sign Up", login: "Log In" }[route.page];
+    document.title = `${name} · Jiaxian Meet`;
+    const switchingAuthMode = isAccountPage(last.page) && isAccountPage(route.page);
+    if (last.guide !== route.guide || (last.page !== route.page && !switchingAuthMode)) {
+      const returning = last.guide && !route.guide && last.page === route.page;
+      const target = returning ? document.querySelector<HTMLElement>("[data-guide-link]") : null;
+      if (!returning) window.scrollTo(0, 0);
+      (target ?? document.getElementById(route.guide ? "guide-main" : mainId))?.focus({ preventScroll: true });
+    }
+    previous.current = route;
+  }, [route]);
+
+  function openGuide() {
+    history.pushState({ guideFrom: route.page }, "", "#guide");
+    setRoute(readRoute());
   }
 
-  if (view === "room") return <WatchRoom onLeave={() => navigate("home")} />;
-  if (view === "signup") return <SignUp />; 
+  function closeGuide() {
+    if (history.state?.guideFrom) history.back();
+    else location.hash = "home";
+  }
 
-  return (
-    <MeetHome 
-      onPreviewWatchRoom={() => navigate("room")} 
-      onNavigateSignUp={() => navigate("signup")} 
-    />
-  );
+  if (!route.guide && isAccountPage(route.page)) {
+    return <SignUp mode={route.page === "login" ? "login" : "signup"} />;
+  }
+
+  return <div className="watch-room min-h-dvh bg-room-base text-room-text">
+    <div hidden={route.guide}>
+      {route.page === "home" && <MeetHome active={!route.guide} onGuide={openGuide} onEnter={() => { location.hash = "watch-room"; }} />}
+      {route.page === "watch-room" && <WatchRoom active={!route.guide} onGuide={openGuide} />}
+    </div>
+    {route.guide && <Guide onBack={closeGuide} />}
+  </div>;
 }

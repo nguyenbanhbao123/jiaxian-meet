@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+export type AuthMode = 'login' | 'signup';
 
-export default function AuthForm() {
-  const [mode, setMode] = useState<'login' | 'signup'>('signup');
+export default function AuthForm({ mode }: { mode: AuthMode }) {
+  function setMode(next: AuthMode) {
+    window.location.hash = next === 'login' ? 'login' : 'sign-up';
+  }
 
   return (
     <div className="w-full">
       {/* Mode Toggle */}
       <div className="mb-8 flex w-full rounded-xl bg-[#23242a] p-1">
         <button
+          aria-pressed={mode === 'login'}
           onClick={() => setMode('login')}
           className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
             mode === 'login' ? 'bg-[#31323b] text-white' : 'text-gray-400 hover:text-white'
@@ -16,6 +19,7 @@ export default function AuthForm() {
           Log In
         </button>
         <button
+          aria-pressed={mode === 'signup'}
           onClick={() => setMode('signup')}
           className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
             mode === 'signup' ? 'bg-[#31323b] text-white' : 'text-gray-400 hover:text-white'
@@ -34,9 +38,9 @@ export default function AuthForm() {
         {/* Name Input - Only visible during Sign Up */}
         {mode === 'signup' && (
           <div className="space-y-1">
-            <label className="text-sm text-gray-300">Name</label>
+            <label htmlFor="auth-text" className="text-sm text-gray-300">Name</label>
             <input
-              type="text"
+              id="auth-text" type="text"
               className="w-full rounded-md border border-gray-700 bg-transparent px-4 py-2.5 text-sm text-white focus:border-[#dcb886] focus:outline-none focus:ring-1 focus:ring-[#dcb886]"
             />
           </div>
@@ -44,9 +48,9 @@ export default function AuthForm() {
 
         {/* Email Input */}
         <div className="space-y-1">
-          <label className="text-sm text-gray-300">Email Address</label>
+          <label htmlFor="auth-email" className="text-sm text-gray-300">Email Address</label>
           <input
-            type="email"
+            id="auth-email" type="email"
             className="w-full rounded-md border border-gray-700 bg-transparent px-4 py-2.5 text-sm text-white focus:border-[#dcb886] focus:outline-none focus:ring-1 focus:ring-[#dcb886]"
           />
         </div>
@@ -54,7 +58,7 @@ export default function AuthForm() {
         {/* Password Input */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <label className="text-sm text-gray-300">Password</label>
+            <label htmlFor="auth-password" className="text-sm text-gray-300">Password</label>
             {/* Optional: Forgot password link for Login mode */}
             {mode === 'login' && (
               <a href="#" className="text-xs text-[#dcb886] hover:underline">
@@ -63,7 +67,7 @@ export default function AuthForm() {
             )}
           </div>
           <input
-            type="password"
+            id="auth-password" type="password"
             placeholder="Password"
             className="w-full rounded-md border border-gray-700 bg-transparent px-4 py-2.5 text-sm text-white focus:border-[#dcb886] focus:outline-none focus:ring-1 focus:ring-[#dcb886]"
           />
