@@ -13,18 +13,17 @@ type JoinPhase = "idle" | "joining" | "canceled";
 
 export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomFormProps) {
   const [code, setCode] = useState("");
-  const [touched, setTouched] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [phase, setPhase] = useState<JoinPhase>("idle");
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<number | null>(null);
   const codeId = useId();
-  const headingId = useId();
   const helpId = useId();
   const errorId = useId();
   const statusId = useId();
   const validation = validateDemoRoomCode(code);
   const joining = phase === "joining";
-  const showError = touched && validation.state !== "valid";
+  const showError = submitted && validation.state !== "valid";
 
   const clearPendingJoin = useCallback(() => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -44,7 +43,7 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (disabled || timerRef.current !== null) return;
-    setTouched(true);
+    setSubmitted(true);
 
     if (validation.state !== "valid") {
       inputRef.current?.focus();
@@ -67,21 +66,17 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
   }
 
   const statusMessage = joining
-    ? "Simulated joining… opening the local demo. No server connection."
+    ? "Opening the local room…"
     : phase === "canceled"
-      ? "Demo join canceled. Edit the code or try again."
+      ? "Join canceled."
       : validation.state === "valid" ? validation.message : "";
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-8 max-w-[29rem] border-t border-room-border pt-5" aria-labelledby={headingId}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id={headingId} className="text-sm font-medium">Have an invite? Join a friend.</h2>
-        <span className="room-badge border border-room-border text-room-muted">Demo only</span>
-      </div>
+    <form onSubmit={handleSubmit} noValidate className="mt-6 border-t border-room-border pt-5" aria-label="Join room">
       <label htmlFor={codeId} className="mb-2 block text-xs text-room-muted">Room code</label>
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2 min-[420px]:flex-row">
         <div
-          data-validation={showError ? "invalid" : validation.state}
+          data-validation={showError ? "invalid" : validation.state === "valid" ? "valid" : "idle"}
           className="home-code-field flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-room-control border bg-room-panel pl-3.5 pr-1"
         >
           <RoomIcon name={validation.state === "valid" ? "check" : "lock"} className={`mr-2 h-4 w-4 shrink-0 ${validation.state === "valid" ? "text-room-success" : "text-room-muted"}`} />
@@ -99,7 +94,6 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
               setCode(event.target.value);
               setPhase("idle");
             }}
-            onBlur={() => setTouched(true)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && event.nativeEvent.isComposing) event.preventDefault();
             }}
@@ -114,12 +108,12 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
             className="min-h-11 min-w-0 flex-1 rounded-md bg-transparent text-base text-room-text placeholder:text-room-muted disabled:opacity-50"
           />
           {code && (
-            <IconButton label="Clear room code" disabled={joining || disabled} onClick={() => { setCode(""); setTouched(false); setPhase("idle"); inputRef.current?.focus(); }}>
+            <IconButton label="Clear room code" disabled={joining || disabled} onClick={() => { setCode(""); setSubmitted(false); setPhase("idle"); inputRef.current?.focus(); }}>
               <RoomIcon name="close" className="h-4 w-4" />
             </IconButton>
           )}
         </div>
-        <button type="submit" className="room-secondary-button min-h-12 shrink-0 px-4 text-sm sm:min-w-40" disabled={joining || disabled} aria-busy={joining}>
+        <button type="submit" className="room-secondary-button min-h-12 shrink-0 px-4 text-sm" disabled={joining || disabled} aria-busy={joining}>
           {joining ? (
             <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true">
               <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
@@ -131,9 +125,9 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
         </button>
       </div>
       <p id={helpId} className="mt-2 text-xs leading-relaxed text-room-muted">
-        Demo only. Try <code className="font-mono text-room-accent">{DEMO_ROOM_CODE}</code>. No real room is checked or joined.
+        Try <code className="font-mono text-room-accent">{DEMO_ROOM_CODE}</code>.
       </p>
-      <div className="mt-2 min-h-5">
+      <div className="mt-1">
         {showError && <p id={errorId} role="alert" className="text-xs leading-relaxed text-room-danger">{validation.message}</p>}
         <p id={statusId} role="status" aria-atomic="true" className={`text-xs leading-relaxed ${validation.state === "valid" && phase === "idle" ? "text-room-success" : "text-room-muted"}`}>
           {statusMessage}

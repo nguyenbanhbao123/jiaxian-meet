@@ -1,5 +1,8 @@
 # Home UI handoff
 
+> Earlier design handoff. For the current interface and verification results, see the [minimal UI redesign](minimal-ui-redesign.md) and [feature audit](feature-audit.md).
+
+
 The Home page replaces the meeting calendar with a cinematic welcome screen.
 It reuses the Watch Room palette, typography, button/panel classes, icons,
 avatars, and native dialog component. Watch Room source and global styles are

@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 
 const paths = {
+  help: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-.9.7-1.7 1.2-1.7 2.7m0 3h.01" /></>,
+  ticket: <><path d="M3 6h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4V6Z" /><path d="M15 6v2m0 3v2m0 3v2" /></>,
+  plus: <path d="M12 5v14M5 12h14" />,
   play: <path d="m9 5 11 7-11 7V5Z" />,
   pause: <><path d="M8 5v14M16 5v14" /></>,
   upload: <><path d="M12 16V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" /></>,

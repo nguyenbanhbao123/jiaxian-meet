@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Room-only semantic tokens. The original home page keeps its own theme. */
+/* Shared semantic colors and control geometry. */
 @theme {
   --color-room-base: #111318;
   --color-room-panel: #1B1E25;
@@ -61,25 +61,6 @@
 
 /* Keep component styles in a layer so responsive Tailwind utilities can override them. */
 @layer components {
-  .watch-room .room-container {
-    width: 100%;
-    max-width: 1600px;
-    margin-inline: auto;
-    padding-inline: var(--room-gutter);
-  }
-  .watch-room .room-content { margin-inline: auto; }
-  .watch-room .room-main { padding-block: 1.25rem; }
-  .watch-room .room-context { margin-bottom: 1rem; }
-  .watch-room .room-main-column { display: flex; flex-direction: column; gap: 1rem; }
-  .watch-room .room-main-column > :last-child { flex-shrink: 0; }
-  .watch-room .room-workspace {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-    gap: var(--room-layout-gap);
-  }
-  .watch-room .room-chat-slot { height: 36rem; }
-  .watch-room .room-footer { grid-column: 1 / -1; }
   .watch-room .room-video-slot {
     display: grid;
     place-items: center;
@@ -164,8 +145,8 @@
     background: color-mix(in srgb, var(--color-room-danger) 8%, var(--color-room-panel));
     color: var(--color-room-danger);
   }
-  .watch-room .room-danger-button:enabled:hover { background: color-mix(in srgb, var(--color-room-danger) 16%, var(--color-room-panel)); }
-  .watch-room .room-danger-button:enabled:active { background: color-mix(in srgb, var(--color-room-danger) 22%, var(--color-room-panel)); }
+  .watch-room .room-danger-button:where(:enabled, a):hover { background: color-mix(in srgb, var(--color-room-danger) 16%, var(--color-room-panel)); }
+  .watch-room .room-danger-button:where(:enabled, a):active { background: color-mix(in srgb, var(--color-room-danger) 22%, var(--color-room-panel)); }
   .watch-room :where(.room-control, .room-button-primary, .room-secondary-button, .room-danger-button):disabled {
     opacity: 0.4;
     box-shadow: none;
@@ -228,80 +209,97 @@
     min-height: 0;
     flex: 1;
   }
-  .watch-room .room-canvas:fullscreen .room-video-stage {
-    width: min(100%, calc(100cqh * 16 / 9));
-  }
   .watch-room .room-canvas:fullscreen video { object-fit: contain; }
 
-  @media (min-width: 640px) {
-    .watch-room { --room-gutter: 2rem; }
-  }
-  @media (min-width: 1024px) {
-    .watch-room .room-workspace { grid-template-columns: minmax(0, 1fr) var(--room-chat-width); }
-    .watch-room .room-chat-slot { position: relative; height: auto; min-height: 0; }
-    .watch-room .room-chat-slot > aside { position: absolute; inset: 0; }
-    .watch-room .room-workspace--theater { grid-template-columns: minmax(0, 1fr); }
-    .watch-room .room-workspace--theater .room-chat-slot { position: static; height: 36rem; }
-    .watch-room .room-workspace--theater .room-chat-slot > aside { position: static; }
-  }
-
-  @media (min-width: 1024px) and (min-height: 640px) {
-    /* Allocate actual remaining viewport space instead of estimating a fixed
-       allowance. Intrinsic minimums can grow the document for exceptional text. */
-    .watch-room.room-shell {
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
-      height: 100dvh;
-      overflow-y: auto;
-    }
-    .watch-room.room-shell .room-main { min-height: 0; padding-block: 0.75rem; }
-    .watch-room.room-shell .room-content { display: flex; height: 100%; min-height: 0; flex-direction: column; }
-    .watch-room.room-shell .room-context { flex-shrink: 0; margin-bottom: 0.75rem; }
-    .watch-room.room-shell .room-workspace {
-      flex: 1;
-      min-height: min-content;
-      grid-template-rows: minmax(min-content, 1fr) auto;
-      row-gap: 0.75rem;
-    }
-    .watch-room.room-shell .room-main-column { min-height: min-content; gap: 0.75rem; }
-    .watch-room.room-shell .room-player,
-    .watch-room.room-shell .room-canvas {
-      display: flex;
-      flex: 1;
-      min-height: min-content;
-      flex-direction: column;
-    }
-    .watch-room.room-shell .room-video-slot {
-      container: room-screen / size;
-      flex: 1;
-      min-height: 12rem;
-    }
-    .watch-room.room-shell .room-video-stage { width: min(100%, calc(100cqh * 16 / 9)); }
-    /* Theater keeps the player and voice in the first viewport, then places
-       chat and the footer in flowing rows below. Nothing overlays the player. */
-    .watch-room.room-shell .room-workspace--theater {
-      min-height: 0;
-      grid-template-rows: minmax(min-content, 100%) auto auto;
-    }
-  }
 }
-
-/* Only decoration and whitespace compact when the fitted display gets short. */
-@container room-screen (max-height: 22rem) {
-  .watch-room .room-empty-state { padding-block: 0.75rem; }
-  .watch-room .room-empty-icon { width: 2.5rem; height: 2.5rem; margin-bottom: 0.5rem; }
-  .watch-room .room-empty-copy { margin-bottom: 0.75rem; }
-  .watch-room .room-empty-hint { display: none; }
+body { background: var(--color-room-base); }
+.app-header { border-bottom: 1px solid var(--color-room-border); }
+.app-header-inner, .screen-main {
+  width: min(100%, 100rem);
+  padding-inline: clamp(.75rem, 3vw, 3rem);
+  margin-inline: auto;
 }
-@container room-screen (max-height: 16rem) {
-  .watch-room .room-empty-icon,
-  .watch-room .room-video-label { display: none; }
+.app-header-inner, .screen-heading, .screen-dock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
 }
-
+.app-header-inner { min-height: 4rem; }
+.brand-link {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: .65rem;
+  min-height: var(--room-control-size);
+  font-size: 1.1rem;
+  font-weight: 650;
+  letter-spacing: -.035em;
+}
+.watch-room main:focus-visible { outline: none; }
+.watch-room main:focus-visible h1 { text-decoration: underline; text-decoration-color: var(--color-room-accent); text-underline-offset: .2em; }
+.watch-room a.room-control:hover, .brand-link:hover { color: var(--color-room-accent); }
+.screen-heading { min-height: 3.75rem; }
+.screen-workspace { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+.screen-dock { padding-block: .6rem; }
+.chat-slot { min-width: 0; height: clamp(20rem, 56dvh, 36rem); }
+.chat-slot:focus { outline-offset: -2px; }
+.screen-main { padding-bottom: 1rem; }
+.room-video-stage { max-height: max(12rem, calc(100dvh - 19rem)); }
+.screen-workspace[data-theater="true"] .room-video-stage {
+  height: max(16rem, calc(100dvh - 16rem));
+  max-height: none;
+  aspect-ratio: auto;
+}
+.room-canvas:fullscreen .room-video-stage {
+  height: 100%;
+  width: 100%;
+  max-height: none;
+}
+.reading-page { width: min(100%, 44rem); margin-inline: auto; padding: clamp(1.25rem, 4vw, 3rem) 1.25rem; }
+@media (min-width: 1024px) {
+  .screen-workspace[data-chat="true"] { grid-template-columns: minmax(0, 1fr) var(--room-chat-width); }
+  .chat-slot { height: auto; position: relative; }
+  .chat-slot > aside { position: absolute; inset: 0; }
+}
+@media (max-width: 380px) {
+  .home-nav .room-control { padding-inline: .25rem; }
+  .brand-link { font-size: .95rem; gap: .4rem; }
+  .screen-dock { align-items: flex-start; }
+  .screen-dock > div { max-width: 10rem; }
+}
 @media (prefers-reduced-motion: reduce) {
   .watch-room *, .watch-room *::before, .watch-room *::after {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+.room-player-controls { container-type: inline-size; }
+.playback-layout {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-areas: "seek seek seek" "transport audio view";
+  align-items: center;
+  column-gap: .875rem;
+}
+.playback-transport, .playback-audio, .playback-view { display: flex; align-items: center; }
+.playback-transport { grid-area: transport; }
+.playback-seek { grid-area: seek; min-width: 0; display: flex; }
+.playback-audio { grid-area: audio; }
+.playback-view { grid-area: view; justify-self: end; }
+.watch-room .playback-layout .room-control:enabled { color: var(--color-room-text); }
+.watch-room .playback-layout .room-control[aria-pressed="true"] { color: var(--color-room-accent); }
+.watch-room .chat-toggle[aria-expanded="true"] {
+  color: var(--color-room-accent);
+  background: var(--room-control-selected);
+  border-color: var(--color-room-accent);
+}
+@container (max-width: 28rem) {
+  .playback-layout {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "transport seek" "audio view";
+    column-gap: .25rem;
   }
 }

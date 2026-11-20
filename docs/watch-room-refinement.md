@@ -1,5 +1,8 @@
 # Watch Room refinement
 
+> Earlier design handoff. For the current interface and verification results, see the [minimal UI redesign](minimal-ui-redesign.md) and [feature audit](feature-audit.md).
+
+
 The existing cinematic identity is retained: charcoal surfaces, champagne gold,
 Avenir typography, rounded panels, and the original movie-night empty state.
 Changes are limited to frontend hierarchy, layout, component states, and accessibility.

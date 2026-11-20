@@ -1,5 +1,8 @@
 # Video-state UI handoff
 
+> Earlier design handoff. For the current interface and verification results, see the [minimal UI redesign](minimal-ui-redesign.md) and [feature audit](feature-audit.md).
+
+
 The Watch Room now has a **Video UI states** action. It opens an isolated native
 dialog for inspecting five presentation states. The approved local `VideoPlayer`
 implementation is unchanged: file selection still uses an object URL and reads
