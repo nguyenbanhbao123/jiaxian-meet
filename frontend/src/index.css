@@ -1,3 +1,5 @@
+/* Keep Tailwind preflight below the picker, with application utilities above it. */
+@layer theme, base, epr, components, utilities;
 @import "tailwindcss";
 
 /* Shared semantic colors and control geometry. */
