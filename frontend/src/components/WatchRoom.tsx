@@ -55,7 +55,7 @@ export default function WatchRoom({ active, onGuide }: { active: boolean; onGuid
           </div>
         </div>
         <div id="room-chat" ref={chatSlot} hidden={!chatVisible} tabIndex={-1} aria-label="Local chat" role="region" className="chat-slot">
-          <ChatSidebar onClose={toggleChat} />
+          <ChatSidebar visible={active && chatVisible} onClose={toggleChat} />
         </div>
       </div>
     </main>

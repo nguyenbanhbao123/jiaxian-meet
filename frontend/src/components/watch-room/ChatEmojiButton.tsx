@@ -1,0 +1,109 @@
+import { lazy, Suspense, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
+import { RoomIcon } from "./RoomIcon";
+import "./chat-emoji.css";
+
+const EmojiPicker = lazy(() => import("emoji-picker-react"));
+
+type Props = {
+  inputRef: RefObject<HTMLTextAreaElement | null>;
+  onInsert: (emoji: string) => boolean;
+};
+
+export default function ChatEmojiButton({ inputRef, onInsert }: Props) {
+  const id = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [atLimit, setAtLimit] = useState(false);
+
+  useLayoutEffect(() => {
+    const popup = panel.current;
+    const composer = inputRef.current?.form;
+    if (!open || !popup || !composer) return;
+
+    const viewport = window.visualViewport;
+    function position() {
+      if (!popup || !composer) return;
+      const rect = composer.getBoundingClientRect();
+      const gap = 8;
+      const x = (viewport?.offsetLeft ?? 0) + gap;
+      const y = (viewport?.offsetTop ?? 0) + gap;
+      const right = x + (viewport?.width ?? document.documentElement.clientWidth) - 2 * gap;
+      const bottom = y + (viewport?.height ?? window.innerHeight) - 2 * gap;
+      const above = Math.min(rect.top - gap, bottom) - y;
+      const below = bottom - Math.max(rect.bottom + gap, y);
+      const width = Math.min(352, right - x);
+      const height = Math.min(384, Math.max(above, below));
+      popup.style.width = width + "px";
+      popup.style.height = height + "px";
+      popup.style.left = Math.max(x, Math.min(rect.right - width, right - width)) + "px";
+      popup.style.top = (above >= below ? y + above - height : bottom - below) + "px";
+    }
+
+    // Handle Escape before the picker uses it to clear an active search.
+    function escape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !event.isComposing && popup?.matches(":popover-open")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        popup.hidePopover();
+      }
+    }
+
+    position();
+    const resize = new ResizeObserver(position);
+    resize.observe(composer);
+    window.addEventListener("keydown", escape, true);
+    window.addEventListener("resize", position);
+    window.addEventListener("scroll", position, true);
+    viewport?.addEventListener("resize", position);
+    viewport?.addEventListener("scroll", position);
+    return () => {
+      resize.disconnect();
+      window.removeEventListener("keydown", escape, true);
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position, true);
+      viewport?.removeEventListener("resize", position);
+      viewport?.removeEventListener("scroll", position);
+    };
+  }, [open, inputRef]);
+
+  return <>
+    <button type="button" className="room-control room-icon-button" popoverTarget={id}
+      aria-label="Choose emoji" title="Choose emoji" aria-haspopup="dialog" aria-controls={id} aria-expanded={open}>
+      <RoomIcon name="smile" className="h-[18px] w-[18px]" />
+    </button>
+    {createPortal(
+      <div ref={panel} id={id} popover="auto" role="dialog" aria-label="Choose emoji" className="chat-emoji-popover"
+        onToggle={event => {
+          setOpen(event.newState === "open");
+          setAtLimit(false);
+        }}>
+        {open && <Suspense fallback={<p role="status">Loading emojis…</p>}>
+          <EmojiPicker
+            className="chat-emoji-picker"
+            cssLayer="epr"
+            theme="dark"
+            emojiStyle="native"
+            suggestedEmojisMode="recent"
+            autoFocusSearch
+            keepSearchFocus
+            searchLabel="Search emojis"
+            previewConfig={{ showPreview: false }}
+            width="100%"
+            height="100%"
+            onEmojiClick={({ emoji }) => {
+              if (!onInsert(emoji)) {
+                setAtLimit(true);
+                return;
+              }
+              panel.current?.hidePopover();
+              inputRef.current?.focus({ preventScroll: true });
+            }}
+          />
+        </Suspense>}
+        {atLimit && <p role="status">This emoji exceeds the 2000-character limit.</p>}
+      </div>,
+      document.body
+    )}
+  </>;
+}

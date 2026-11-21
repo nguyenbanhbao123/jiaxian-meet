@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import ChatEmojiButton from "./ChatEmojiButton";
 import { RoomIcon } from "./RoomIcon";
 import { Avatar, IconButton } from "./RoomUI";
 
@@ -39,7 +41,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 /** A browser-local conversation. The other participant's messages are fixtures. */
-export default function ChatSidebar({ onClose }: { onClose: () => void }) {
+export default function ChatSidebar({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [draft, setDraft] = useState("");
   const inputId = useId();
@@ -56,6 +58,18 @@ export default function ChatSidebar({ onClose }: { onClose: () => void }) {
       scrollAfterSend.current = false;
     }
   }, [messages.length]);
+
+  function insertEmoji(emoji: string) {
+    const input = inputRef.current;
+    if (!input) return false;
+    const { selectionStart: start, selectionEnd: end } = input;
+    const next = draft.slice(0, start) + emoji + draft.slice(end);
+    if (next.length > input.maxLength) return false;
+    // Commit the controlled value before placing the caret after the full Unicode sequence.
+    flushSync(() => setDraft(next));
+    input.setSelectionRange(start + emoji.length, start + emoji.length);
+    return true;
+  }
 
   const sendMessage = () => {
     const text = draft.trim();
@@ -123,16 +137,7 @@ export default function ChatSidebar({ onClose }: { onClose: () => void }) {
             placeholder="Write a message…"
             className="block min-h-11 w-full min-w-0 resize-none rounded-md bg-transparent px-2 py-2 text-base leading-relaxed text-room-text placeholder:text-room-muted sm:text-sm"
           />
-          <IconButton
-            label="Add a smile to your message"
-            disabled={draft.length > 1997}
-            onClick={() => {
-              setDraft((current) => `${current}${current && !current.endsWith(" ") ? " " : ""}:)`.slice(0, 2000));
-              inputRef.current?.focus();
-            }}
-          >
-            <RoomIcon name="smile" className="h-[18px] w-[18px]" />
-          </IconButton>
+          {visible && <ChatEmojiButton inputRef={inputRef} onInsert={insertEmoji} />}
           <button
             type="submit"
             disabled={!canSend}

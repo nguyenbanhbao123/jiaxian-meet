@@ -83,7 +83,7 @@ the same sample view; no room is looked up, verified, created, or joined.
 Open <http://localhost:5173/#watch-room> for direct entry or <http://localhost:5173/#guide> for instructions. The question-mark button opens Guide from Home or the room. Back restores the originating screen. The logo and Leave return Home.
 
 - Choose or drop a local file. Playback, seeking, volume, speed, fullscreen and theater view operate on the browser media element. Change video replaces the file.
-- Chat opens beside the player on desktop and below it on smaller screens. Enter sends locally, Shift+Enter adds a line and the smile button appends ` :)`. The sample incoming message is labeled.
+- Chat opens beside the player on desktop and below it on smaller screens. Enter sends locally, Shift+Enter adds a line and the emoji button opens a searchable native picker. Choosing an emoji inserts it at the caret or replaces the selected text. The sample incoming message is labeled.
 - The microphone switch previews on and off states. No audio connection is established.
 - Visiting Guide pauses playback and preserves the file, position, chat history and draft. Leaving the room or reloading resets these.
 - Home and Guide link to **Log In** (`#login`) and **Sign Up** (`#sign-up`). Each opens its matching original form. Switching modes updates the hash and supports refresh and browser history. Form submission stays local and creates no session. Google and Apple have no provider handlers. The original Forgot password link returns Home and sends no reset email.

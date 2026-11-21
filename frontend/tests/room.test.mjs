@@ -77,6 +77,28 @@ for (const [width, height] of [[1440,900], [1280,720], [768,1024], [390,844], [3
     assert.equal(await toggle.isVisible(), width < 1024);
     await assertLayout(page);
     const draft = page.getByLabel("Message the room");
+    const emojiButton = button(page, "Choose emoji");
+    await emojiButton.focus();
+    await emojiButton.press("Enter");
+    const picker = page.getByRole("dialog", {name:"Choose emoji"});
+    const search = picker.getByRole("combobox", {name:"Search emojis"});
+    await picker.getByRole("gridcell").first().waitFor();
+    assert.ok(await focused(search));
+    const popup = await picker.boundingBox();
+    const send = await button(page, "Send local message").boundingBox();
+    assert.ok(popup.x >= 0 && popup.y >= 0 && popup.x + popup.width <= width && popup.y + popup.height <= height);
+    assert.ok(popup.y + popup.height <= send.y || popup.y >= send.y + send.height);
+    const categories = await picker.getByRole("tab").all();
+    assert.equal(categories.length, 9);
+    for (const tab of categories) {
+      const box = await tab.boundingBox();
+      assert.ok(box.x >= popup.x && box.x + box.width <= popup.x + popup.width + 1);
+    }
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await search.fill("rocket");
+    await search.press("Escape");
+    await picker.waitFor({state:"hidden"});
+    assert.ok(await focused(emojiButton));
     await draft.fill("A local message");
     await draft.press("Enter");
     await draft.fill("Keep this draft");
@@ -268,9 +290,11 @@ test("secondary controls, dialog keyboard behavior and Guide account navigation"
   assert.ok(await focused(settings));
   const draft = page.getByLabel("Message the room");
   await draft.fill("hello");
-  await button(page,"Add a smile to your message").click();
+  await button(page,"Choose emoji").click();
+  const picker = page.getByRole("dialog", {name:"Choose emoji"});
+  await picker.getByRole("gridcell", {name:"grinning face", exact:true}).click();
   await draft.press("Shift+Enter");
-  assert.equal(await draft.inputValue(), "hello :)\n");
+  assert.equal(await draft.inputValue(), "hello😀\n");
   await button(page,"Send local message").click();
   assert.ok(await button(page,"Send local message").isDisabled());
   await button(page,"Guide").click();
@@ -376,3 +400,76 @@ for (const [width, height] of [[1440, 900], [390, 844], [320, 568]]) {
     await button(page,"Create Room").waitFor();
   });
 }
+
+test("emoji search, cursor insertion, replacement, recents and local delivery", async t => {
+  const page = await visit(t, "#watch-room");
+  const draft = page.getByLabel("Message the room");
+  const trigger = button(page, "Choose emoji");
+  const picker = page.getByRole("dialog", {name:"Choose emoji"});
+  const search = picker.getByRole("combobox", {name:"Search emojis"});
+  const log = page.getByRole("log", {name:"Chat messages"});
+  const initialCount = await log.getByRole("listitem").count();
+  await draft.fill("Watch it tonight");
+  await draft.evaluate(el => el.setSelectionRange(6, 8));
+  await trigger.click();
+  await search.fill("rocket");
+  const rocket = picker.getByRole("gridcell", {name:"rocket", exact:true});
+  await rocket.waitFor();
+  await search.press("ArrowDown");
+  assert.ok(await focused(search));
+  const selected = await search.evaluate(el => {
+    const cell = document.getElementById(el.getAttribute("aria-activedescendant"));
+    return { role: cell?.getAttribute("role"), name: cell?.ariaLabel, glyph: cell?.textContent.trim() };
+  });
+  assert.equal(selected.role, "gridcell");
+  assert.ok(selected.glyph && selected.name);
+  await search.press("Enter");
+  assert.equal(await draft.inputValue(), `Watch ${selected.glyph} tonight`);
+  assert.ok(await focused(draft));
+  const caret = 6 + selected.glyph.length;
+  assert.deepEqual(await draft.evaluate(el => [el.selectionStart, el.selectionEnd]), [caret, caret]);
+  await trigger.click();
+  const recent = picker.getByRole("rowgroup", {name:"Recently Used"}).getByRole("gridcell", {name:selected.name, exact:true});
+  await recent.click();
+  const message = `Watch ${selected.glyph.repeat(2)} tonight`;
+  assert.equal(await draft.inputValue(), message);
+  assert.equal(await log.getByRole("listitem").count(), initialCount);
+  await trigger.click();
+  await picker.getByRole("tab", {name:"Food & Drink"}).click();
+  await picker.getByRole("rowgroup", {name:"Food & Drink"}).getByRole("gridcell").first().waitFor();
+  await draft.click();
+  await picker.waitFor({state:"hidden"});
+  await button(page, "Close chat").click();
+  await button(page, "Chat").click();
+  assert.equal(await draft.inputValue(), message);
+  await draft.press("Enter");
+  await log.getByText(message, {exact:true}).waitFor();
+  assert.equal(await draft.inputValue(), "");
+});
+
+test("skin tones and whole-emoji handling at the draft length limit", async t => {
+  const page = await visit(t, "#watch-room");
+  const draft = page.getByLabel("Message the room");
+  const trigger = button(page, "Choose emoji");
+  const picker = page.getByRole("dialog", {name:"Choose emoji"});
+  await trigger.click();
+  await picker.getByRole("button", {name:"Skin tone NEUTRAL", exact:true}).click();
+  await picker.getByRole("button", {name:"Skin tone MEDIUM", exact:true}).click();
+  await picker.getByRole("combobox", {name:"Search emojis"}).fill("thumbs up");
+  await picker.getByRole("gridcell", {name:/^thumbs up/}).first().click();
+  assert.equal(await draft.inputValue(), "👍🏽");
+
+  await draft.fill("a".repeat(1999));
+  await trigger.click();
+  await picker.getByRole("combobox", {name:"Search emojis"}).fill("rocket");
+  await picker.getByRole("gridcell", {name:"rocket", exact:true}).click();
+  await picker.getByText("This emoji exceeds the 2000-character limit.").waitFor();
+  assert.equal(await draft.inputValue(), "a".repeat(1999));
+  await page.keyboard.press("Escape");
+  await draft.focus();
+  await draft.evaluate(el => el.setSelectionRange(0, 1));
+  await trigger.click();
+  await picker.getByRole("combobox", {name:"Search emojis"}).fill("rocket");
+  await picker.getByRole("gridcell", {name:"rocket", exact:true}).click();
+  assert.equal(await draft.inputValue(), "🚀" + "a".repeat(1998));
+});
