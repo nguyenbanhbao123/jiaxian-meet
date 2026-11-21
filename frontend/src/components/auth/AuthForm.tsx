@@ -35,25 +35,27 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
       </h1>
 
       <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-        {/* Name Input - Only visible during Sign Up */}
-        {mode === 'signup' && (
-          <div className="space-y-1">
-            <label htmlFor="auth-text" className="text-sm text-gray-300">Name</label>
-            <input
-              id="auth-text" type="text"
-              className="w-full rounded-md border border-gray-700 bg-transparent px-4 py-2.5 text-sm text-white focus:border-[#dcb886] focus:outline-none focus:ring-1 focus:ring-[#dcb886]"
-            />
-          </div>
-        )}
-
-        {/* Email Input */}
+        {/* Username Input */}
         <div className="space-y-1">
-          <label htmlFor="auth-email" className="text-sm text-gray-300">Email Address</label>
+          <label htmlFor="auth-text" className="text-sm text-gray-300">Username</label>
           <input
-            id="auth-email" type="email"
+            id="auth-text" type="text"
             className="w-full rounded-md border border-gray-700 bg-transparent px-4 py-2.5 text-sm text-white focus:border-[#dcb886] focus:outline-none focus:ring-1 focus:ring-[#dcb886]"
           />
         </div>
+      
+
+        {/* Email Input */}
+        {mode === 'signup' && (
+          <div className="space-y-1">
+            <label htmlFor="auth-email" className="text-sm text-gray-300">Email Address</label>
+            <input
+              id="auth-email" type="email"
+              className="w-full rounded-md border border-gray-700 bg-transparent px-4 py-2.5 text-sm text-white focus:border-[#dcb886] focus:outline-none focus:ring-1 focus:ring-[#dcb886]"
+            />
+          </div>
+        )} 
+        
 
         {/* Password Input */}
         <div className="space-y-1">
