@@ -1,8 +1,9 @@
-/** Shared static fixture. It is never generated or issued by a server. */
+// The invitation preview and join form share this sample code.
 export const DEMO_ROOM_CODE = "DEMO-2SEATS";
 
-/** A visible UI simulation, not a network request or connection timeout. */
 export const DEMO_JOIN_DELAY_MS = 900;
+
+const DEMO_CODE_PATTERN = /^DEMO-[A-Z0-9]{6}$/i;
 
 export type DemoCodeValidation = {
   state: "empty" | "invalid" | "valid";
@@ -10,9 +11,7 @@ export type DemoCodeValidation = {
   message: string;
 };
 
-/** Prototype-only format; the backend's eventual code contract is undecided.
- * Every matching demo value opens the same local preview, without room lookup.
- */
+// Every matching code opens the same local room.
 export function validateDemoRoomCode(rawCode: string): DemoCodeValidation {
   const trimmedCode = rawCode.trim();
   const normalizedCode = trimmedCode.toUpperCase();
@@ -20,7 +19,7 @@ export function validateDemoRoomCode(rawCode: string): DemoCodeValidation {
   if (!normalizedCode) {
     return { state: "empty", normalizedCode, message: "Enter a room code to try the demo." };
   }
-  if (!/^DEMO-[A-Z0-9]{6}$/i.test(trimmedCode)) {
+  if (!DEMO_CODE_PATTERN.test(trimmedCode)) {
     return {
       state: "invalid",
       normalizedCode,

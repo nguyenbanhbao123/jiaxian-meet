@@ -36,12 +36,12 @@ Paths below are relative to `frontend/src/components/` unless prefixed with `src
 | Play / pause | Implemented & Verified | watch-room/VideoPlayer.tsx | P1. Observed real media time advancing and stopping. Disabled until ready. |
 | Seek | Implemented & Verified | watch-room/VideoPlayer.tsx | P1. Keyboard timeline changes updated the media time. |
 | Volume / mute | Implemented & Verified | watch-room/VideoPlayer.tsx | P1. Slider and toggle updated media volume and muted state, including recovery from zero. Volume is available on narrow screens. |
-| Playback speed | Implemented & Verified | watch-room/VideoPlayer.tsx | P2. Cycling changed the media element to 1.25×. |
+| Playback speed | Implemented & Verified | watch-room/VideoPlayer.tsx | P2. The Settings slider changes the media playback rate from 0.5× to 2× in 0.25× steps. |
 | Fullscreen | Implemented & Verified | watch-room/VideoPlayer.tsx, src/index.css | P2. Entered and exited the native Fullscreen API in desktop Chromium. Availability varies by browser. |
 | Theater view | Implemented & Verified | WatchRoom.tsx, watch-room/VideoPlayer.tsx | P2. Expands the local player and hides chat. Opening chat exits theater. |
 | File replacement and recovery | Implemented & Verified | watch-room/VideoPlayer.tsx | P1. Unsupported text preserves the current file. A corrupt WebM raises a player error. Dropping a playable file recovers. |
 | Object URL cleanup | Implemented & Verified | watch-room/VideoPlayer.tsx | P1. Previous blob URL became unreadable after replacement, current URL after leaving. Guide retained the URL. |
-| Video state gallery | UI Demo Only | watch-room/VideoStatePreviewDialog.tsx, watch-room/VideoUploadState.tsx | P3. Settings exposes all five fixtures. Mock progress, cancel and retry are local controls. |
+| Video state gallery | UI Demo Only | watch-room/VideoStatePreviewDialog.tsx, watch-room/VideoUploadState.tsx | P3. Development diagnostics at `/?diagnostics=1#watch-room` expose all five fixtures. Mock progress, cancel and retry are local controls. |
 | Upload / share video | Backend Dependent | watch-room/VideoUploadState.tsx, watch-room/VideoPlayer.tsx | P1. No transfer client or shared media source. Requires an agreed transport, authorization, progress and failure lifecycle. |
 | Synchronized play/pause and seek | Backend Dependent | watch-room/VideoPlayer.tsx | P1. Local media events only. Requires authoritative timing, ordering and reconnect behavior. |
 | Host and guest permissions | Backend Dependent | WatchRoom.tsx, watch-room/VideoStatePreviewDialog.tsx | P1. Sample roles confer no authority. Needs room membership and enforced permissions. |
@@ -59,7 +59,7 @@ Paths below are relative to `frontend/src/components/` unless prefixed with `src
 | Account form navigation | Implemented & Verified | SignUp.tsx, auth/AuthForm.tsx | P2. Home and Guide link to #login and #sign-up. Top and footer switches, direct entry, reload, and Back/Forward select the expected form. The logo returns Home. |
 | Activities | Not Implemented | WatchRoom.tsx (baseline footer) | P3. Confirmed inert and removed from the toolbar. Future activities need a defined product feature. |
 | Host controls | Not Implemented | WatchRoom.tsx (baseline footer) | P2. Confirmed inert and removed. Moderation or host-only playback actions require an agreed role model. |
-| Settings | Implemented & Verified | WatchRoom.tsx | P2. Local theater preference and entry to the existing video state gallery. No server settings. |
+| Settings | Implemented & Verified | watch-room/PlayerSettings.tsx, watch-room/VideoPlayer.tsx | P2. Player gear controls local speed, video brightness and native looping. Reset preserves the session. Theater remains a separate button. |
 | Help / Guide | Implemented & Verified | Guide.tsx, AppHeader.tsx, src/App.tsx | P1. Accessible from Home and room. Direct entry falls back to Home. Returning from the room preserves media and draft. |
 | Dialogs, keyboard and route focus | Implemented & Verified | watch-room/RoomUI.tsx, src/App.tsx | P1. Native modal, Tab containment, Escape, backdrop dismissal, visible focus and return to opener. Browser-tested paths are listed below. |
 | Responsive layout | Implemented & Verified | src/index.css, home/home.css | P1. Home actions in view, chat access, control geometry and overflow checked across all five requested sizes. |

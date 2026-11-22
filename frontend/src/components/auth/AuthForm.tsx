@@ -34,6 +34,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
         {mode === 'signup' ? 'Create your account' : 'Welcome back'}
       </h1>
 
+      {/* Connect credential submission here when login and registration are available. */}
       <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
         {/* Username Input */}
         <div className="space-y-1">

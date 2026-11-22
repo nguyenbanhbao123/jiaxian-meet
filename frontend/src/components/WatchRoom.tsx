@@ -5,15 +5,17 @@ import VideoPlayer from "./watch-room/VideoPlayer";
 import VoicePanel from "./watch-room/VoicePanel";
 import VideoStatePreviewDialog from "./watch-room/VideoStatePreviewDialog";
 import { RoomIcon } from "./watch-room/RoomIcon";
-import { Avatar, IconButton, RoomDialog } from "./watch-room/RoomUI";
+import { Avatar, RoomDialog } from "./watch-room/RoomUI";
 
 export default function WatchRoom({ active, onGuide }: { active: boolean; onGuide: () => void }) {
-  const [dialog, setDialog] = useState<"participants" | "settings" | "video-states" | null>(null);
+  const [dialog, setDialog] = useState<"participants" | "video-states" | null>(null);
   const [theater, setTheater] = useState(false);
   const [showChat, setShowChat] = useState(() => window.matchMedia("(min-width: 1024px)").matches);
   const chatToggle = useRef<HTMLButtonElement>(null);
   const chatSlot = useRef<HTMLDivElement>(null);
   const moveChatFocus = useRef(false);
+  const diagnostics = import.meta.env.DEV && new URLSearchParams(window.location.search).has("diagnostics");
+  // Theater temporarily hides chat while preserving the user’s layout preference.
   const chatVisible = showChat && !theater;
 
   useLayoutEffect(() => {
@@ -33,7 +35,6 @@ export default function WatchRoom({ active, onGuide }: { active: boolean; onGuid
     <AppHeader mainId="room-main">
       <nav className="flex items-center gap-1" aria-label="Room navigation">
         <GuideLink onOpen={onGuide} />
-        <IconButton label="Room settings" aria-haspopup="dialog" onClick={() => setDialog("settings")}><RoomIcon name="settings" /></IconButton>
         <a className="room-danger-button" href="#home" aria-label="Leave room" title="Leave room"><RoomIcon name="phone-off" /><span className="hidden sm:inline">Leave</span></a>
       </nav>
     </AppHeader>
@@ -53,18 +54,17 @@ export default function WatchRoom({ active, onGuide }: { active: boolean; onGuid
               <RoomIcon name="chat" />Chat
             </button>
           </div>
+          {diagnostics && <button type="button" className="room-control px-2 text-sm" aria-haspopup="dialog" onClick={() => setDialog("video-states")}>Preview video UI states <RoomIcon name="arrow" /></button>}
         </div>
+        {/* Keep the sidebar mounted so closing chat preserves the draft, history and scroll position. */}
         <div id="room-chat" ref={chatSlot} hidden={!chatVisible} tabIndex={-1} aria-label="Local chat" role="region" className="chat-slot">
           <ChatSidebar visible={active && chatVisible} onClose={toggleChat} />
         </div>
       </div>
     </main>
-    {active && dialog === "video-states" && <VideoStatePreviewDialog onClose={() => setDialog(null)} />}
-    {active && dialog === "settings" && <RoomDialog title="Room settings" onClose={() => setDialog(null)}>
-      <button className="room-secondary-button" aria-pressed={theater} onClick={() => setTheater(value => !value)}>Theater view</button>
-      <button className="room-control mt-4 flex w-full justify-between border-t border-room-border px-2" onClick={() => setDialog("video-states")}>Preview video UI states <RoomIcon name="arrow" /></button>
-    </RoomDialog>}
+    {diagnostics && active && dialog === "video-states" && <VideoStatePreviewDialog onClose={() => setDialog(null)} />}
     {active && dialog === "participants" && <RoomDialog title="Sample participants" onClose={() => setDialog(null)}>
+      {/* Room presence should supply both this list and the seat count above. */}
       <ul className="space-y-3">
         <li className="flex items-center gap-3"><Avatar name="Jiaxian" /><span>Jiaxian <small className="text-room-muted">· You</small></span></li>
         <li className="flex items-center gap-3"><Avatar name="Bao" tone="sage" /><span>Bao <small className="text-room-muted">· Sample guest</small></span></li>

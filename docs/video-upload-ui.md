@@ -3,14 +3,14 @@
 > Earlier design handoff. For the current interface and verification results, see the [minimal UI redesign](minimal-ui-redesign.md) and [feature audit](feature-audit.md).
 
 
-The Watch Room now has a **Video UI states** action. It opens an isolated native
+Watch Room development diagnostics provide a **Preview video UI states** action. It opens an isolated native
 dialog for inspecting five presentation states. The approved local `VideoPlayer`
 implementation is unchanged: file selection still uses an object URL and reads
 media only on this device. Selection is never presented as a server upload.
 
 ## Preview each state
 
-Open `/#watch-room`, click **Video UI states**, and choose a **Preview state**.
+Run the Vite development server, open `/?diagnostics=1#watch-room`, click **Preview video UI states** below the player, and choose a **Preview state**.
 
 | State | Preview behavior |
 | --- | --- |

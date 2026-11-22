@@ -51,7 +51,7 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
     }
 
     setPhase("joining");
-    // This delay only demonstrates a pending UI; no request or verification occurs.
+    // Replace the demo timer with room lookup and enter after the server confirms the join.
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
       setPhase("idle");
@@ -65,11 +65,9 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
     inputRef.current?.focus();
   }
 
-  const statusMessage = joining
-    ? "Opening the local room…"
-    : phase === "canceled"
-      ? "Join canceled."
-      : validation.state === "valid" ? validation.message : "";
+  let statusMessage = validation.state === "valid" ? validation.message : "";
+  if (joining) statusMessage = "Opening the local room…";
+  if (phase === "canceled") statusMessage = "Join canceled.";
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-6 border-t border-room-border pt-5" aria-label="Join room">

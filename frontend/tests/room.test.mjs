@@ -209,7 +209,11 @@ test("local media selection, transport, replacement, errors and URL lifetime", a
   assert.ok(await video.evaluate(v => v.volume > 0 && !v.muted));
   await button(page,"Mute video").click();
   assert.ok(await video.evaluate(v => v.muted));
+  await button(page, "Playback settings").click();
   await page.getByRole("button", {name:/Playback speed/}).click();
+  const speed = page.getByRole("slider", { name: "Playback speed" });
+  await speed.press("ArrowRight");
+  await speed.press("Escape");
   assert.equal(await video.evaluate(v => v.playbackRate), 1.25);
   await button(page,"Theater view").click();
   assert.equal(await button(page,"Chat").getAttribute("aria-expanded"), "false");
@@ -257,7 +261,7 @@ test("local media selection, transport, replacement, errors and URL lifetime", a
 });
 
 test("secondary controls, dialog keyboard behavior and Guide account navigation", async t => {
-  const page = await visit(t, "#watch-room");
+  const page = await visit(t, "?diagnostics=1#watch-room");
   const mic = button(page, "Preview microphone");
   await mic.click();
   assert.equal(await mic.getAttribute("aria-pressed"), "true");
@@ -267,13 +271,12 @@ test("secondary controls, dialog keyboard behavior and Guide account navigation"
   await page.keyboard.press("Tab");
   assert.ok(await page.evaluate(() => !!document.activeElement.closest("dialog")));
   await page.keyboard.press("Escape");
-  const settings = button(page, "Room settings");
-  await settings.click();
-  const theaterSetting = page.getByRole("dialog").getByRole("button", {name:"Theater view"});
+  const theaterSetting = button(page, "Theater view");
   await theaterSetting.click();
   assert.equal(await theaterSetting.getAttribute("aria-pressed"), "true");
   await theaterSetting.click();
-  await button(page, "Preview video UI states").click();
+  const preview = button(page, "Preview video UI states");
+  await preview.click();
   const options = page.getByLabel("Preview state");
   await button(page,"Use sample video").click();
   const progress = page.getByRole("slider", {name:/Mock progress/});
@@ -287,7 +290,7 @@ test("secondary controls, dialog keyboard behavior and Guide account navigation"
   await button(page,"Exit preview").waitFor();
   await options.selectOption("ready");
   await button(page,"Return to local player").click();
-  assert.ok(await focused(settings));
+  assert.ok(await focused(preview));
   const draft = page.getByLabel("Message the room");
   await draft.fill("hello");
   await button(page,"Choose emoji").click();
@@ -362,7 +365,10 @@ for (const [width, height] of [[1440, 900], [390, 844], [320, 568]]) {
       await heading(title).waitFor();
       const inputs = page.locator("form input");
       assert.equal(await inputs.count(), hash === "login" ? 2 : 3);
-      assert.ok(await page.getByLabel("Email Address").isEditable());
+      assert.ok(await page.getByLabel("Username", {exact:true}).isEditable());
+      const email = page.getByLabel("Email Address");
+      if (hash === "sign-up") assert.ok(await email.isEditable());
+      else assert.equal(await email.count(), 0);
       assert.ok(await page.getByLabel("Password", {exact:true}).isEditable());
       const panels = page.getByRole("main").locator(":scope > div");
       const formBox = await panels.first().boundingBox();
@@ -385,13 +391,14 @@ for (const [width, height] of [[1440, 900], [390, 844], [320, 568]]) {
     await heading("Welcome back").waitFor();
     const requests = [];
     page.on("request", r => { if (["xhr","fetch","document"].includes(r.resourceType())) requests.push(r.url()); });
-    await page.getByLabel("Email Address").fill("viewer@example.invalid");
+    await page.getByLabel("Username", {exact:true}).fill("Viewer");
     await page.getByLabel("Password", {exact:true}).fill("local-test-example");
     await page.locator("form button[type=submit]").click();
     for (const provider of ["Google","Apple"]) await page.getByRole("button", {name: new RegExp("Continue with " + provider + "$")}).click();
     await heading("Welcome back").waitFor();
     await button(page,"Sign Up").first().click();
-    await page.getByLabel("Name", {exact:true}).fill("Viewer");
+    await page.getByLabel("Username", {exact:true}).fill("Viewer");
+    await page.getByLabel("Email Address").fill("viewer@example.invalid");
     await button(page,"Create Account").click();
     await heading("Create your account").waitFor();
     assert.deepEqual(requests, []);
@@ -472,4 +479,169 @@ test("skin tones and whole-emoji handling at the draft length limit", async t =>
   await picker.getByRole("combobox", {name:"Search emojis"}).fill("rocket");
   await picker.getByRole("gridcell", {name:"rocket", exact:true}).click();
   assert.equal(await draft.inputValue(), "🚀" + "a".repeat(1998));
+});
+
+for (const [width, height] of [[1440, 900], [1280, 720], [768, 1024], [390, 844], [320, 568]]) {
+  test(`Player settings fit the video and support keyboard navigation at ${width} × ${height}`, async t => {
+    const page = await visit(t, "#watch-room", width, height);
+    const gear = button(page, "Playback settings");
+    const panel = page.getByRole("dialog", { name: "Playback settings" });
+    assert.ok(await gear.isDisabled());
+    assert.equal(await button(page, "Preview video UI states").count(), 0);
+    assert.equal(await page.getByRole("navigation").getByRole("button", {name: /settings/i}).count(), 0);
+    await page.getByLabel("Choose a local video file").setInputFiles(clip);
+    await page.waitForFunction(() => document.querySelector("video")?.duration > 0);
+    for (const fullscreen of [false, true]) {
+      if (fullscreen) {
+        await gear.click();
+        await panel.getByRole("button", {name: /Brightness/}).click();
+        const slider = panel.getByRole("slider", {name: "Brightness"});
+        await slider.press("ArrowLeft");
+        await slider.press("Escape");
+        await button(page, "Enter fullscreen").click();
+        await page.waitForFunction(() => !!document.fullscreenElement);
+        assert.equal(await page.locator("video").evaluate(v => getComputedStyle(v).filter), "brightness(0.95)");
+      }
+      await gear.press("Enter");
+      await panel.waitFor();
+      assert.equal(await gear.getAttribute("aria-expanded"), "true");
+      assert.ok(await focused(panel.getByRole("button", {name: /Playback speed/})));
+      const bounds = await panel.evaluate(el => {
+        const box = el.getBoundingClientRect();
+        const canvas = el.closest(".room-canvas").getBoundingClientRect();
+        const controls = el.closest(".room-player-controls").getBoundingClientRect();
+        return box.left >= Math.max(0, canvas.left) && box.right <= Math.min(innerWidth, canvas.right) &&
+          box.top >= Math.max(0, canvas.top) && box.bottom <= Math.min(innerHeight, controls.top) &&
+          el.scrollHeight <= el.clientHeight + 1 && document.documentElement.scrollWidth <= innerWidth;
+      });
+      assert.ok(bounds, "All rows fit above the controls, inside the video and viewport");
+      for (const row of await panel.getByRole("button").all()) {
+        assert.ok(await row.evaluate(el => {
+          const r = el.getBoundingClientRect();
+          return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+        }));
+      }
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Enter");
+      const brightness = panel.getByRole("slider", {name: "Brightness"});
+      assert.ok(await focused(brightness));
+      if (fullscreen) await brightness.press("ArrowRight");
+      await brightness.press("ArrowRight");
+      assert.equal(await page.locator("video").evaluate(v => getComputedStyle(v).filter), "brightness(1.05)");
+      await brightness.press("Shift+Tab");
+      await page.keyboard.press("Enter");
+      assert.ok(await focused(panel.getByRole("button", {name: /Brightness 105%/})));
+      await page.keyboard.press("Escape");
+      await panel.waitFor({state: "hidden"});
+      assert.ok(await focused(gear));
+      assert.equal(await gear.getAttribute("aria-expanded"), "false");
+      await gear.click();
+      await button(panel, "Reset to defaults").click();
+      await gear.click();
+      await panel.waitFor({state: "hidden"});
+      await gear.click();
+      await page.locator("video").click({position: {x: 5, y: 5}});
+      await panel.waitFor({state: "hidden"});
+      if (fullscreen) await button(page, "Exit fullscreen").click();
+    }
+    await assertLayout(page);
+  });
+}
+
+test("Player adjustments update local media and reset preserves the session", async t => {
+  const page = await visit(t, "#watch-room");
+  const file = page.getByLabel("Choose a local video file");
+  await file.setInputFiles(clip);
+  await page.waitForFunction(() => document.querySelector("video")?.duration > 0);
+  const video = page.locator("video");
+  const gear = button(page, "Playback settings");
+  const panel = page.getByRole("dialog", {name: "Playback settings"});
+  const draft = page.getByLabel("Message the room");
+  await draft.fill("Saved in chat");
+  await draft.press("Enter");
+  await draft.fill("Unsent draft");
+  await page.getByRole("slider", {name: "Video volume"}).press("ArrowLeft");
+  await button(page, "Mute video").click();
+  await button(page, "Theater view").click();
+  const timeline = page.getByRole("slider", {name: "Video timeline"});
+  await timeline.press("ArrowRight");
+  const session = () => video.evaluate(v => [v.currentSrc, v.currentTime, v.volume, v.muted, v.paused, location.href]);
+  const initial = await session();
+  assert.ok(initial[1] > 0);
+  const values = () => video.evaluate(v => [v.playbackRate, getComputedStyle(v).filter, v.loop]);
+  const defaults = [1, "none", false];
+  assert.deepEqual(await values(), defaults);
+  await gear.click();
+  await panel.getByRole("button", {name: /Playback speed 1×/}).click();
+  const speed = panel.getByRole("slider", {name: "Playback speed"});
+  await speed.press("Home");
+  assert.equal(await video.evaluate(v => v.playbackRate), 0.5);
+  await speed.press("End");
+  assert.equal(await video.evaluate(v => v.playbackRate), 2);
+  await speed.press("ArrowLeft");
+  assert.equal(await speed.getAttribute("aria-valuetext"), "1.75 times normal speed");
+  await button(panel, "Back to playback settings").click();
+  assert.ok(await focused(panel.getByRole("button", {name: /Playback speed 1.75×/})));
+  await panel.getByRole("button", {name: /Brightness 100%/}).click();
+  const brightness = panel.getByRole("slider", {name: "Brightness"});
+  await brightness.press("Home");
+  assert.equal(await video.evaluate(v => getComputedStyle(v).filter), "brightness(0.5)");
+  await brightness.press("End");
+  await button(panel, "Back to playback settings").click();
+  const loop = button(panel, "Loop video");
+  await loop.press("Space");
+  assert.equal(await loop.getAttribute("aria-pressed"), "true");
+  assert.deepEqual(await values(), [1.75, "brightness(1.5)", true]);
+  assert.deepEqual(await session(), initial);
+  assert.ok(await page.locator(".room-player-controls, #room-chat, video").evaluateAll(elements =>
+    elements.every(el => {
+      for (let node = el.tagName === "VIDEO" ? el.parentElement : el; node; node = node.parentElement) {
+        if (getComputedStyle(node).filter !== "none") return false;
+      }
+      return true;
+    })));
+  await button(panel, "Reset to defaults").click();
+  assert.deepEqual(await values(), defaults);
+  assert.deepEqual(await session(), initial);
+  assert.equal(await button(page, "Theater view").getAttribute("aria-pressed"), "true");
+  await page.keyboard.press("Escape");
+  await button(page, "Theater view").click();
+  assert.equal(await draft.inputValue(), "Unsent draft");
+  await page.getByText("Saved in chat", {exact: true}).waitFor();
+
+  // Seek close to the end to observe both native loop and native ended behavior.
+  await gear.click();
+  await loop.click();
+  await page.keyboard.press("Escape");
+  await timeline.press("End");
+  await timeline.press("ArrowLeft");
+  await button(page, "Play video").click();
+  await page.waitForFunction(() => {
+    const v = document.querySelector("video");
+    return !v.paused && v.currentTime > 0.05 && v.currentTime < 1;
+  });
+  await gear.click();
+  await panel.getByRole("button", {name: /Playback speed/}).click();
+  await speed.press("ArrowRight");
+  assert.ok(await video.evaluate(v => !v.paused && v.playbackRate === 1.25));
+  await button(panel, "Back to playback settings").click();
+  await loop.click();
+  assert.equal(await video.evaluate(v => v.loop), false);
+  await page.keyboard.press("Escape");
+  await video.evaluate(v => { v.currentTime = v.duration - 0.2; });
+  await page.waitForFunction(() => document.querySelector("video").ended);
+
+  await gear.click();
+  await loop.click();
+  await panel.getByRole("button", {name: /Brightness/}).click();
+  await brightness.press("End");
+  await brightness.press("Escape");
+  await file.setInputFiles({name:"invalid.txt", mimeType:"text/plain", buffer:Buffer.from("invalid")});
+  assert.deepEqual(await values(), [1.25, "brightness(1.5)", true]);
+  await file.setInputFiles(clip);
+  await page.waitForFunction(old => {
+    const v = document.querySelector("video");
+    return v.currentSrc && v.currentSrc !== old && v.duration > 0;
+  }, initial[0]);
+  assert.deepEqual(await values(), defaults);
 });
