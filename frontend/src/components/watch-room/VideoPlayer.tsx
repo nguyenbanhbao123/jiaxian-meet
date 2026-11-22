@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
+import PlayerSettings, { playbackDefaults } from "./PlayerSettings";
 import { RoomIcon } from "./RoomIcon";
 import { IconButton } from "./RoomUI";
+
+const DEFAULT_VOLUME = 0.8;
 
 function formatTime(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
   const whole = Math.floor(seconds);
   const hours = Math.floor(whole / 3600);
-  return `${hours ? `${hours}:` : ""}${String(Math.floor(whole / 60) % 60).padStart(hours ? 2 : 1, "0")}:${String(whole % 60).padStart(2, "0")}`;
+  const minutes = Math.floor(whole / 60) % 60;
+  const secondsText = String(whole % 60).padStart(2, "0");
+  if (hours === 0) return `${minutes}:${secondsText}`;
+  return `${hours}:${String(minutes).padStart(2, "0")}:${secondsText}`;
 }
 
 function progressStyle(value: number): CSSProperties {
@@ -23,9 +29,9 @@ export default function VideoPlayer({ active, theater, onToggleTheater }: { acti
   const [ready, setReady] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.8);
+  const [volume, setVolume] = useState(DEFAULT_VOLUME);
   const [muted, setMuted] = useState(false);
-  const [rate, setRate] = useState(1);
+  const [preferences, setPreferences] = useState(playbackDefaults);
   const [dragging, setDragging] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [error, setError] = useState("");
@@ -33,15 +39,19 @@ export default function VideoPlayer({ active, theater, onToggleTheater }: { acti
 
   useEffect(() => { if (!active) videoRef.current?.pause(); }, [active]);
 
-  useEffect(() => () => { if (source) URL.revokeObjectURL(source.url); }, [source]);
+  useEffect(() => {
+    if (!source) return;
+    // Release the local file when it is replaced or the room closes.
+    return () => URL.revokeObjectURL(source.url);
+  }, [source]);
 
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.volume = volume;
       videoRef.current.muted = muted;
-      videoRef.current.playbackRate = rate;
+      videoRef.current.playbackRate = preferences.speed;
     }
-  }, [source, volume, muted, rate]);
+  }, [source, volume, muted, preferences.speed]);
 
   useEffect(() => {
     const updateFullscreen = () => setFullscreen(document.fullscreenElement === canvasRef.current);
@@ -63,7 +73,7 @@ export default function VideoPlayer({ active, theater, onToggleTheater }: { acti
       setReady(false);
       setCurrentTime(0);
       setDuration(0);
-      setRate(1);
+      setPreferences(playbackDefaults);
       setError("");
       setNotice("");
     } catch {
@@ -74,13 +84,41 @@ export default function VideoPlayer({ active, theater, onToggleTheater }: { acti
   async function togglePlay() {
     const video = videoRef.current;
     if (!video || !ready) return;
-    if (!video.paused) video.pause();
-    else {
-      try { await video.play(); setNotice(""); }
-      catch (failure) { if (!(failure instanceof DOMException && failure.name === "AbortError")) setNotice("Playback couldn’t start. Try again or choose another browser-supported video."); }
+    if (!video.paused) {
+      video.pause();
+      return;
+    }
+
+    try {
+      await video.play();
+      setNotice("");
+    } catch (failure) {
+      // Pausing or replacing a file can interrupt a pending play request.
+      if (failure instanceof DOMException && failure.name === "AbortError") return;
+      setNotice("Playback couldn’t start. Try again or choose another browser-supported video.");
     }
   }
 
+  function updateDuration(mediaDuration: number) {
+    setDuration(Number.isFinite(mediaDuration) ? mediaDuration : 0);
+  }
+
+  function seekTo(seconds: number) {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = seconds;
+    setCurrentTime(seconds);
+  }
+
+  function toggleMute() {
+    if (volume === 0) {
+      setVolume(DEFAULT_VOLUME);
+      setMuted(false);
+    } else {
+      setMuted(!muted);
+    }
+  }
+
+  // Fullscreen the canvas so the controls and settings stay with the video.
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -96,19 +134,58 @@ export default function VideoPlayer({ active, theater, onToggleTheater }: { acti
     chooseFile(event.dataTransfer.files[0]);
   }
 
+  const displayedVolume = muted ? 0 : volume;
+  const silent = displayedVolume === 0;
+  const brightnessFilter = preferences.brightness === 100 ? undefined : `brightness(${preferences.brightness}%)`;
   const playable = Boolean(source && ready && !error);
 
   return <section id="watch-screen" aria-label="Local video player" tabIndex={-1} className="room-player scroll-mt-4 rounded-2xl">
     <input ref={inputRef} type="file" accept="video/*,.mkv,.m4v" className="sr-only" tabIndex={-1} aria-label="Choose a local video file" onChange={(event) => { chooseFile(event.target.files?.[0]); event.target.value = ""; }} />
     <div ref={canvasRef} className={`room-canvas room-panel overflow-hidden transition-colors ${dragging ? "border-room-accent ring-2 ring-room-accent/25" : ""}`}
-      onDragEnter={(event) => { event.preventDefault(); dragDepth.current++; setDragging(true); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDragLeave={(event) => { event.preventDefault(); dragDepth.current--; if (dragDepth.current <= 0) setDragging(false); }} onDrop={onDrop}>
+      onDragEnter={event => {
+        event.preventDefault();
+        dragDepth.current++;
+        setDragging(true);
+      }}
+      onDragOver={event => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDragLeave={event => {
+        event.preventDefault();
+        dragDepth.current--;
+        if (dragDepth.current <= 0) setDragging(false);
+      }}
+      onDrop={onDrop}>
       <div className="room-video-slot">
         <div className="room-video-stage relative flex aspect-video items-center justify-center overflow-hidden bg-room-canvas">
-          {source && <video key={source.url} ref={videoRef} src={source.url} playsInline preload="metadata" aria-label={`Local video: ${source.name}`} className="h-full w-full object-contain"
-            onLoadedMetadata={(event) => { setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0); setReady(true); }}
-            onDurationChange={(event) => setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
-            onCanPlay={() => setReady(true)} onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)}
-            onError={() => { setError("This browser can’t play this video. Try an MP4 (H.264) or WebM file."); setReady(false); setPlaying(false); }} />}
+          {/* Room synchronization can consume media events here. The file URL stays on this device. */}
+          {source && <video
+            key={source.url}
+            ref={videoRef}
+            src={source.url}
+            loop={preferences.loop}
+            style={{ filter: brightnessFilter }}
+            playsInline
+            preload="metadata"
+            aria-label={`Local video: ${source.name}`}
+            className="h-full w-full object-contain"
+            onLoadedMetadata={event => {
+              updateDuration(event.currentTarget.duration);
+              setReady(true);
+            }}
+            onDurationChange={event => updateDuration(event.currentTarget.duration)}
+            onCanPlay={() => setReady(true)}
+            onTimeUpdate={event => setCurrentTime(event.currentTarget.currentTime)}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onEnded={() => setPlaying(false)}
+            onError={() => {
+              setError("This browser can’t play this video. Try an MP4 (H.264) or WebM file.");
+              setReady(false);
+              setPlaying(false);
+            }}
+          />}
           {!source && <div className="flex flex-col items-center gap-3">
             <RoomIcon name="film" className="h-8 w-8 text-room-accent" />
             <button type="button" className="room-button-primary" onClick={() => inputRef.current?.click()}>Choose Video</button>
@@ -127,15 +204,16 @@ export default function VideoPlayer({ active, theater, onToggleTheater }: { acti
           </div>
           <div className="playback-seek">
             <label htmlFor="video-timeline" className="sr-only">Video timeline</label>
-            <input id="video-timeline" type="range" className="room-range w-full" min="0" max={duration || 1} step="0.1" value={currentTime} disabled={!playable || !duration} style={progressStyle(duration ? currentTime / duration * 100 : 0)} aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`} onChange={(event) => { if (videoRef.current) { videoRef.current.currentTime = Number(event.target.value); setCurrentTime(Number(event.target.value)); } }} />
+            <input id="video-timeline" type="range" className="room-range w-full" min="0" max={duration || 1} step="0.1" value={currentTime} disabled={!playable || !duration} style={progressStyle(duration ? currentTime / duration * 100 : 0)} aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`} onChange={event => seekTo(Number(event.target.value))} />
           </div>
           <div className="playback-audio">
-            <IconButton label="Mute video" title={muted || volume === 0 ? "Unmute video" : "Mute video"} aria-pressed={muted || volume === 0} onClick={() => { if (volume === 0) { setVolume(0.8); setMuted(false); } else setMuted(!muted); }}><RoomIcon name={muted || volume === 0 ? "muted" : "volume"} className="h-[18px] w-[18px]" /></IconButton>
-            <label htmlFor="video-volume" className="sr-only">Video volume</label><input id="video-volume" type="range" min="0" max="1" step="0.01" value={muted ? 0 : volume} className="room-range w-12 sm:w-16" style={progressStyle(muted ? 0 : volume * 100)} aria-valuetext={`${Math.round((muted ? 0 : volume) * 100)} percent`} onChange={(event) => { setVolume(Number(event.target.value)); setMuted(false); }} />
+            <IconButton label="Mute video" title={silent ? "Unmute video" : "Mute video"} aria-pressed={silent} onClick={toggleMute}><RoomIcon name={silent ? "muted" : "volume"} className="h-[18px] w-[18px]" /></IconButton>
+            <label htmlFor="video-volume" className="sr-only">Video volume</label>
+            <input id="video-volume" type="range" min="0" max="1" step="0.01" value={displayedVolume} className="room-range w-12 sm:w-16" style={progressStyle(displayedVolume * 100)} aria-valuetext={`${Math.round(displayedVolume * 100)} percent`} onChange={(event) => { setVolume(Number(event.target.value)); setMuted(false); }} />
           </div>
           <div className="playback-view">
-            <button type="button" aria-label={`Playback speed: ${rate}×. Click to change.`} disabled={!playable} onClick={() => setRate(rate === 2 ? 0.5 : rate === 0.5 ? 1 : rate === 1 ? 1.25 : rate === 1.25 ? 1.5 : 2)} className="room-control px-2 text-xs tabular-nums" title="Cycle playback speed">{rate}×</button>
             <IconButton label="Theater view" title={theater ? "Exit theater view" : "Theater view"} aria-pressed={theater} onClick={onToggleTheater}><svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2" /></svg></IconButton>
+            {active && <PlayerSettings key={source?.url} value={preferences} disabled={!playable} onChange={setPreferences} />}
             <IconButton label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"} onClick={toggleFullscreen}><RoomIcon name={fullscreen ? "minimize" : "fullscreen"} className="h-[18px] w-[18px]" /></IconButton>
           </div>
         </div>

@@ -11,6 +11,10 @@ type ChatMessage = {
   time: string;
 };
 
+// Match textarea.maxLength, which counts UTF-16 code units.
+const MESSAGE_LENGTH_LIMIT = 2000;
+const SHOW_COUNT_AFTER = MESSAGE_LENGTH_LIMIT * 0.9;
+
 const INITIAL_MESSAGES: ChatMessage[] = [
   { id: 1, author: "Bao", text: "Ready when you are :)", time: "8:42 PM" },
 ];
@@ -63,10 +67,10 @@ export default function ChatSidebar({ visible, onClose }: { visible: boolean; on
     const input = inputRef.current;
     if (!input) return false;
     const { selectionStart: start, selectionEnd: end } = input;
-    const next = draft.slice(0, start) + emoji + draft.slice(end);
-    if (next.length > input.maxLength) return false;
+    const nextDraft = draft.slice(0, start) + emoji + draft.slice(end);
+    if (nextDraft.length > input.maxLength) return false;
     // Commit the controlled value before placing the caret after the full Unicode sequence.
-    flushSync(() => setDraft(next));
+    flushSync(() => setDraft(nextDraft));
     input.setSelectionRange(start + emoji.length, start + emoji.length);
     return true;
   }
@@ -82,6 +86,7 @@ export default function ChatSidebar({ visible, onClose }: { visible: boolean; on
       text,
       time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
     };
+    // Real-time delivery belongs here; the demo appends only to this room’s local history.
     setMessages((current) => [...current, message]);
     setDraft("");
     inputRef.current?.focus();
@@ -132,12 +137,12 @@ export default function ChatSidebar({ visible, onClose }: { visible: boolean; on
                 sendMessage();
               }
             }}
-            maxLength={2000}
+            maxLength={MESSAGE_LENGTH_LIMIT}
             rows={draft.includes("\n") ? 2 : 1}
             placeholder="Write a message…"
             className="block min-h-11 w-full min-w-0 resize-none rounded-md bg-transparent px-2 py-2 text-base leading-relaxed text-room-text placeholder:text-room-muted sm:text-sm"
           />
-          {visible && <ChatEmojiButton inputRef={inputRef} onInsert={insertEmoji} />}
+          {visible && <ChatEmojiButton inputRef={inputRef} onInsert={insertEmoji} messageLimit={MESSAGE_LENGTH_LIMIT} />}
           <button
             type="submit"
             disabled={!canSend}
@@ -147,7 +152,7 @@ export default function ChatSidebar({ visible, onClose }: { visible: boolean; on
           >
             <RoomIcon name="send" className="h-[18px] w-[18px]" />
           </button>
-          {draft.length > 1800 && <span className="col-span-3 px-2 text-right text-xs text-room-muted">{draft.length}/2000</span>}
+          {draft.length > SHOW_COUNT_AFTER && <span className="col-span-3 px-2 text-right text-xs text-room-muted">{draft.length}/{MESSAGE_LENGTH_LIMIT}</span>}
         </form>
       </div>
     </aside>

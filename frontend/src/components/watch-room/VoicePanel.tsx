@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RoomIcon } from "./RoomIcon";
 
 export default function VoicePanel() {
+  // Connect this preview toggle to the local microphone track when WebRTC voice is available.
   const [enabled, setEnabled] = useState(false);
   return <div className="flex flex-wrap items-center gap-x-2">
     <button type="button" className="room-control px-2 text-sm" aria-label="Preview microphone" aria-pressed={enabled}

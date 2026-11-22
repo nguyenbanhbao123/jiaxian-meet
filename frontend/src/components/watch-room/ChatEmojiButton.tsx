@@ -7,10 +7,11 @@ const EmojiPicker = lazy(() => import("emoji-picker-react"));
 
 type Props = {
   inputRef: RefObject<HTMLTextAreaElement | null>;
+  messageLimit: number;
   onInsert: (emoji: string) => boolean;
 };
 
-export default function ChatEmojiButton({ inputRef, onInsert }: Props) {
+export default function ChatEmojiButton({ inputRef, onInsert, messageLimit }: Props) {
   const id = useId();
   const panel = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -21,8 +22,9 @@ export default function ChatEmojiButton({ inputRef, onInsert }: Props) {
     const composer = inputRef.current?.form;
     if (!open || !popup || !composer) return;
 
+    // The on-screen keyboard can shrink the visible area around the composer.
     const viewport = window.visualViewport;
-    function position() {
+    function positionPicker() {
       if (!popup || !composer) return;
       const rect = composer.getBoundingClientRect();
       const gap = 8;
@@ -30,14 +32,14 @@ export default function ChatEmojiButton({ inputRef, onInsert }: Props) {
       const y = (viewport?.offsetTop ?? 0) + gap;
       const right = x + (viewport?.width ?? document.documentElement.clientWidth) - 2 * gap;
       const bottom = y + (viewport?.height ?? window.innerHeight) - 2 * gap;
-      const above = Math.min(rect.top - gap, bottom) - y;
-      const below = bottom - Math.max(rect.bottom + gap, y);
+      const spaceAbove = Math.min(rect.top - gap, bottom) - y;
+      const spaceBelow = bottom - Math.max(rect.bottom + gap, y);
       const width = Math.min(352, right - x);
-      const height = Math.min(384, Math.max(above, below));
+      const height = Math.min(384, Math.max(spaceAbove, spaceBelow));
       popup.style.width = width + "px";
       popup.style.height = height + "px";
       popup.style.left = Math.max(x, Math.min(rect.right - width, right - width)) + "px";
-      popup.style.top = (above >= below ? y + above - height : bottom - below) + "px";
+      popup.style.top = (spaceAbove >= spaceBelow ? y + spaceAbove - height : bottom - spaceBelow) + "px";
     }
 
     // Handle Escape before the picker uses it to clear an active search.
@@ -49,21 +51,21 @@ export default function ChatEmojiButton({ inputRef, onInsert }: Props) {
       }
     }
 
-    position();
-    const resize = new ResizeObserver(position);
+    positionPicker();
+    const resize = new ResizeObserver(positionPicker);
     resize.observe(composer);
     window.addEventListener("keydown", escape, true);
-    window.addEventListener("resize", position);
-    window.addEventListener("scroll", position, true);
-    viewport?.addEventListener("resize", position);
-    viewport?.addEventListener("scroll", position);
+    window.addEventListener("resize", positionPicker);
+    window.addEventListener("scroll", positionPicker, true);
+    viewport?.addEventListener("resize", positionPicker);
+    viewport?.addEventListener("scroll", positionPicker);
     return () => {
       resize.disconnect();
       window.removeEventListener("keydown", escape, true);
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position, true);
-      viewport?.removeEventListener("resize", position);
-      viewport?.removeEventListener("scroll", position);
+      window.removeEventListener("resize", positionPicker);
+      window.removeEventListener("scroll", positionPicker, true);
+      viewport?.removeEventListener("resize", positionPicker);
+      viewport?.removeEventListener("scroll", positionPicker);
     };
   }, [open, inputRef]);
 
@@ -101,7 +103,7 @@ export default function ChatEmojiButton({ inputRef, onInsert }: Props) {
             }}
           />
         </Suspense>}
-        {atLimit && <p role="status">This emoji exceeds the 2000-character limit.</p>}
+        {atLimit && <p role="status">This emoji exceeds the {messageLimit}-character limit.</p>}
       </div>,
       document.body
     )}

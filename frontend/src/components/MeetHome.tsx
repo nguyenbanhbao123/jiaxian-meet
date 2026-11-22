@@ -10,7 +10,7 @@ import "./home/home.css";
 type Props = { active: boolean; onEnter: () => void; onGuide: () => void };
 
 export default function MeetHome({ active, onEnter, onGuide }: Props) {
-  const [creating, setCreating] = useState(false);
+  const [invitationOpen, setInvitationOpen] = useState(false);
   return <>
     <AppHeader mainId="home-main">
       <nav aria-label="Home navigation" className="home-nav flex items-center gap-1 whitespace-nowrap text-sm">
@@ -24,14 +24,15 @@ export default function MeetHome({ active, onEnter, onGuide }: Props) {
         <div className="home-art"><HomeScene /></div>
         <div className="ticket-body">
           <h1 id="home-title">Watch room</h1>
-          <button type="button" className="room-button-primary w-full" aria-haspopup="dialog" onClick={() => setCreating(true)}>
+          <button type="button" className="room-button-primary w-full" aria-haspopup="dialog" onClick={() => setInvitationOpen(true)}>
             <RoomIcon name="plus" />Create Room
           </button>
-          <JoinRoomForm onJoinDemo={onEnter} disabled={creating || !active} />
+          <JoinRoomForm onJoinDemo={onEnter} disabled={invitationOpen || !active} />
         </div>
         <p className="ticket-stub"><RoomIcon name="ticket" />Local demo · No shared connection</p>
       </section>
     </main>
-    {active && creating && <CreateRoomDialog sampleRoomCode={DEMO_ROOM_CODE} onClose={() => setCreating(false)} onEnterWatchRoom={onEnter} />}
+    {/* Supply the room code returned by room creation here when the backend is connected. */}
+    {active && invitationOpen && <CreateRoomDialog sampleRoomCode={DEMO_ROOM_CODE} onClose={() => setInvitationOpen(false)} onEnterWatchRoom={onEnter} />}
   </>;
 }

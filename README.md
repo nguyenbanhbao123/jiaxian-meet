@@ -82,7 +82,9 @@ the same sample view; no room is looked up, verified, created, or joined.
 
 Open <http://localhost:5173/#watch-room> for direct entry or <http://localhost:5173/#guide> for instructions. The question-mark button opens Guide from Home or the room. Back restores the originating screen. The logo and Leave return Home.
 
-- Choose or drop a local file. Playback, seeking, volume, speed, fullscreen and theater view operate on the browser media element. Change video replaces the file.
+- Choose or drop a local video. The player provides play/pause, seeking, volume, theater view and fullscreen.
+- Once the file is ready, open the gear between Theater and Fullscreen. Use the arrow keys on the speed slider (0.5×–2× in 0.25× steps) or brightness slider (50%–150% in 5% steps). Loop repeats the current file. Escape closes settings and returns focus to the gear.
+- **Reset to defaults** restores 1× speed, 100% brightness and Loop Off while preserving the file, position and volume. Choosing another video starts with those defaults. Brightness affects only the displayed video on this device.
 - Chat opens beside the player on desktop and below it on smaller screens. Enter sends locally, Shift+Enter adds a line and the emoji button opens a searchable native picker. Choosing an emoji inserts it at the caret or replaces the selected text. The sample incoming message is labeled.
 - The microphone switch previews on and off states. No audio connection is established.
 - Visiting Guide pauses playback and preserves the file, position, chat history and draft. Leaving the room or reloading resets these.
@@ -90,7 +92,7 @@ Open <http://localhost:5173/#watch-room> for direct entry or <http://localhost:5
 
 ## Preview video UI states
 
-In the Watch Room, open **Room settings → Preview video UI states**, then use **Preview state** to inspect
+With the Vite development server running, open [Watch Room diagnostics](http://localhost:5173/?diagnostics=1#watch-room). Select **Preview video UI states** below the player, then use **Preview state** to inspect
 Empty, Uploading, Ready, Error, and Waiting for host. All five are explicitly
 labeled UI-only previews and use static sample metadata.
 

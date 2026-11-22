@@ -7,6 +7,13 @@ import Guide from "./components/Guide";
 type Page = "home" | "watch-room" | "sign-up" | "login";
 type Route = { page: Page; guide: boolean };
 
+const pageDetails = {
+  home: { mainId: "home-main", title: "Home" },
+  "watch-room": { mainId: "room-main", title: "Watch room" },
+  "sign-up": { mainId: "signup-main", title: "Sign Up" },
+  login: { mainId: "signup-main", title: "Log In" },
+} satisfies Record<Page, { mainId: string; title: string }>;
+
 function isAccountPage(page: string) {
   return page === "login" || page === "sign-up";
 }
@@ -33,8 +40,8 @@ export default function App() {
 
   useLayoutEffect(() => {
     const last = previous.current;
-    const mainId = { home: "home-main", "watch-room": "room-main", "sign-up": "signup-main", login: "signup-main" }[route.page];
-    const name = route.guide ? "Guide" : { home: "Home", "watch-room": "Watch room", "sign-up": "Sign Up", login: "Log In" }[route.page];
+    const { mainId, title } = pageDetails[route.page];
+    const name = route.guide ? "Guide" : title;
     document.title = `${name} · Jiaxian Meet`;
     const switchingAuthMode = isAccountPage(last.page) && isAccountPage(route.page);
     if (last.guide !== route.guide || (last.page !== route.page && !switchingAuthMode)) {
@@ -61,6 +68,7 @@ export default function App() {
   }
 
   return <div className="watch-room min-h-dvh bg-room-base text-room-text">
+    {/* Keep the originating screen mounted while Guide is open so Back restores its state. */}
     <div hidden={route.guide}>
       {route.page === "home" && <MeetHome active={!route.guide} onGuide={openGuide} onEnter={() => { location.hash = "watch-room"; }} />}
       {route.page === "watch-room" && <WatchRoom active={!route.guide} onGuide={openGuide} />}
