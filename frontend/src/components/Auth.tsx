@@ -1,7 +1,13 @@
-import AuthForm, { type AuthMode } from './auth/AuthForm';
-import HeroSection from './auth/HeroSection';
+import AuthForm, { type AuthMode } from "./auth/AuthForm";
+import HeroSection from "./auth/HeroSection";
+import type { AuthUser } from "./home/Avatar";
 
-export default function SignUp({ mode }: { mode: AuthMode }) {
+type Props = {
+  mode: AuthMode;
+  onAuthSuccess: (user: AuthUser) => void;
+};
+
+export default function SignUp({ mode, onAuthSuccess }: Props) {
   return (
     <main id="signup-main" tabIndex={-1} className="flex h-screen w-full bg-[#16171b] text-white font-sans">
       {/* Left Side: Auth Panel */}
@@ -18,7 +24,7 @@ export default function SignUp({ mode }: { mode: AuthMode }) {
 
         {/* Form Container */}
         <div className="mx-auto w-full max-w-md flex-1">
-          <AuthForm mode={mode} />
+          <AuthForm mode={mode} onAuthSuccess={onAuthSuccess} />
         </div>
       </div>
 

@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import MeetHome from "./components/MeetHome";
 import WatchRoom from "./components/WatchRoom";
-import SignUp from "./components/SignUp";
+import SignUp from "./components/Auth";
 import Guide from "./components/Guide";
+import type { AuthUser } from "./components/home/Avatar";
 
 type Page = "home" | "watch-room" | "sign-up" | "login";
 type Route = { page: Page; guide: boolean };
@@ -27,7 +28,14 @@ function readRoute(): Route {
 
 export default function App() {
   const [route, setRoute] = useState(readRoute);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const previous = useRef(route);
+
+  function handleAuthSuccess(loggedInUser: AuthUser) {
+    setUser(loggedInUser);
+    location.hash = "home";
+  }
+
   useEffect(() => {
     const sync = () => setRoute(readRoute());
     window.addEventListener("hashchange", sync);
@@ -64,15 +72,30 @@ export default function App() {
   }
 
   if (!route.guide && isAccountPage(route.page)) {
-    return <SignUp mode={route.page === "login" ? "login" : "signup"} />;
+    return (
+      <SignUp
+        mode={route.page === "login" ? "login" : "signup"}
+        onAuthSuccess={handleAuthSuccess}
+      />
+    );
   }
 
-  return <div className="watch-room min-h-dvh bg-room-base text-room-text">
-    {/* Keep the originating screen mounted while Guide is open so Back restores its state. */}
-    <div hidden={route.guide}>
-      {route.page === "home" && <MeetHome active={!route.guide} onGuide={openGuide} onEnter={() => { location.hash = "watch-room"; }} />}
-      {route.page === "watch-room" && <WatchRoom active={!route.guide} onGuide={openGuide} />}
+  return (
+    <div className="watch-room min-h-dvh bg-room-base text-room-text">
+      {/* Keep the originating screen mounted while Guide is open so Back restores its state. */}
+      <div hidden={route.guide}>
+        {route.page === "home" && (
+          <MeetHome
+            active={!route.guide}
+            user={user}
+            onGuide={openGuide}
+            onEnter={() => { location.hash = "watch-room"; }}
+            onLogout={() => setUser(null)}
+          />
+        )}
+        {route.page === "watch-room" && <WatchRoom active={!route.guide} onGuide={openGuide} />}
+      </div>
+      {route.guide && <Guide onBack={closeGuide} />}
     </div>
-    {route.guide && <Guide onBack={closeGuide} />}
-  </div>;
+  );
 }

@@ -1,8 +1,43 @@
+import { useState, type FormEvent } from 'react';
+import { login, signUp } from '../../api/auth';
+import type { AuthUser } from '../home/Avatar';
+
 export type AuthMode = 'login' | 'signup';
 
-export default function AuthForm({ mode }: { mode: AuthMode }) {
+type Props = {
+  mode: AuthMode;
+  onAuthSuccess: (user: AuthUser) => void;
+};
+
+export default function AuthForm({ mode, onAuthSuccess }: Props) {
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   function setMode(next: AuthMode) {
+    setError(null);
     window.location.hash = next === 'login' ? 'login' : 'sign-up';
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      const user =
+        mode === 'signup'
+          ? await signUp({ username: username.trim(), email: email.trim(), password })
+          : await login({ username: username.trim(), password });
+
+      onAuthSuccess(user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Authentication failed');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -10,6 +45,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
       {/* Mode Toggle */}
       <div className="mb-8 flex w-full rounded-xl bg-[#23242a] p-1">
         <button
+          type="button"
           aria-pressed={mode === 'login'}
           onClick={() => setMode('login')}
           className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
@@ -19,6 +55,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
           Log In
         </button>
         <button
+          type="button"
           aria-pressed={mode === 'signup'}
           onClick={() => setMode('signup')}
           className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
@@ -34,35 +71,39 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
         {mode === 'signup' ? 'Create your account' : 'Welcome back'}
       </h1>
 
-      {/* Connect credential submission here when login and registration are available. */}
-      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
         {/* Username Input */}
         <div className="space-y-1">
           <label htmlFor="auth-text" className="text-sm text-gray-300">Username</label>
           <input
-            id="auth-text" type="text"
+            id="auth-text"
+            type="text"
+            required
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             className="w-full rounded-md border border-gray-700 bg-transparent px-4 py-2.5 text-sm text-white focus:border-[#dcb886] focus:outline-none focus:ring-1 focus:ring-[#dcb886]"
           />
         </div>
-      
 
         {/* Email Input */}
         {mode === 'signup' && (
           <div className="space-y-1">
             <label htmlFor="auth-email" className="text-sm text-gray-300">Email Address</label>
             <input
-              id="auth-email" type="email"
+              id="auth-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-md border border-gray-700 bg-transparent px-4 py-2.5 text-sm text-white focus:border-[#dcb886] focus:outline-none focus:ring-1 focus:ring-[#dcb886]"
             />
           </div>
-        )} 
-        
+        )}
 
         {/* Password Input */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <label htmlFor="auth-password" className="text-sm text-gray-300">Password</label>
-            {/* Optional: Forgot password link for Login mode */}
             {mode === 'login' && (
               <a href="#" className="text-xs text-[#dcb886] hover:underline">
                 Forgot password?
@@ -70,18 +111,33 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
             )}
           </div>
           <input
-            id="auth-password" type="password"
+            id="auth-password"
+            type="password"
+            required
             placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-md border border-gray-700 bg-transparent px-4 py-2.5 text-sm text-white focus:border-[#dcb886] focus:outline-none focus:ring-1 focus:ring-[#dcb886]"
           />
         </div>
 
+        {error && (
+          <p role="alert" className="text-sm text-red-400">
+            {error}
+          </p>
+        )}
+
         {/* Dynamic Submit Button */}
         <button
           type="submit"
-          className="mt-6 w-full rounded-md bg-[#dcb886] py-3 text-sm font-bold text-black transition-colors hover:bg-[#c9a678]"
+          disabled={submitting}
+          className="mt-6 w-full rounded-md bg-[#dcb886] py-3 text-sm font-bold text-black transition-colors hover:bg-[#c9a678] disabled:opacity-50"
         >
-          {mode === 'signup' ? 'Create Account' : 'Log In'}
+          {submitting
+            ? 'Please wait...'
+            : mode === 'signup'
+              ? 'Create Account'
+              : 'Log In'}
         </button>
       </form>
 
@@ -94,11 +150,11 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
 
       {/* Social Buttons */}
       <div className="space-y-3">
-        <button className="flex w-full items-center justify-center space-x-2 rounded-md border border-gray-700 bg-transparent py-2.5 text-sm text-gray-300 transition-colors hover:bg-[#23242a]">
+        <button type="button" className="flex w-full items-center justify-center space-x-2 rounded-md border border-gray-700 bg-transparent py-2.5 text-sm text-gray-300 transition-colors hover:bg-[#23242a]">
           <span className="font-bold text-blue-500">G</span>
           <span>Continue with Google</span>
         </button>
-        <button className="flex w-full items-center justify-center space-x-2 rounded-md border border-gray-700 bg-transparent py-2.5 text-sm text-gray-300 transition-colors hover:bg-[#23242a]">
+        <button type="button" className="flex w-full items-center justify-center space-x-2 rounded-md border border-gray-700 bg-transparent py-2.5 text-sm text-gray-300 transition-colors hover:bg-[#23242a]">
           <span className="font-bold text-white"></span>
           <span>Continue with Apple</span>
         </button>
@@ -107,8 +163,9 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
       {/* Dynamic Footer Link */}
       <div className="mt-8 text-center text-sm text-gray-400">
         {mode === 'signup' ? 'Already have an account? ' : "Don't have an account? "}
-        <button 
-          className="font-medium text-[#dcb886] hover:underline" 
+        <button
+          type="button"
+          className="font-medium text-[#dcb886] hover:underline"
           onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}
         >
           {mode === 'signup' ? 'Log In' : 'Sign Up'}
