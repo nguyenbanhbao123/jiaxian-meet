@@ -1,44 +1,39 @@
-
 #pragma once
 
+#include "router.hpp"
+#include "database.hpp"
+#include "repository.hpp"
+#include "auth_service.hpp"
+#include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <string>
-#include <unordered_map>
 
-#include "message.hpp"
+struct ServerConfig {
+  std::string db_conninfo;
+  std::string host = "0.0.0.0";
+  uint16_t port = 8080;
+  std::size_t threads = 4;
+  std::size_t db_pool = 4;
+  std::string cors_origin = "*";
+  std::string log_dir;
+  std::string log_level = "info";   // trace | debug | info | warn | error | fatal
 
-namespace http_protocol {
-
-using Handler = std::function<void(
-  const Request&,
-  Response&
-)>;
+  static ServerConfig from_env();   // reads DATABASE_URL, throws if missing
+};
 
 class Server {
 public:
-  Server() = default;
-  ~Server() = default;
-
-  // Route registration
-  void get(const std::string& path, Handler handler);
-  void post(const std::string& path, Handler handler);
-
-  // Middleware configuration
-  void use_cors(const std::string& origin);
-
-  // Start server
-  bool listen(uint16_t port);
+  explicit Server(ServerConfig cfg);
+  void run();   // blocks until shutdown (Ctrl+C)
 
 private:
-  std::unordered_map<std::string, Handler> routes_;
-  std::string cors_origin_;
+  void install_logging();
+  void install_cors();
 
-  static std::string to_lower(std::string s);
-  static bool send_all(int fd, const std::string& data);
-  static bool read_request(int fd, Request& req);
-  void apply_cors(Response& res) const;
-  void handle_client(int fd);
+  // Declaration order = construction order
+  ServerConfig cfg_;
+  Database db_;
+  UserRepository repo_;
+  AuthService auth_;
+  Router router_;
 };
-
-} // namespace http_protocol

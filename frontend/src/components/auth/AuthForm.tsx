@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { login, signUp } from '../../api/auth';
-import type { AuthUser } from '../home/Avatar';
+import { AuthUser, login, signUp } from '../../api/auth';
 
 export type AuthMode = 'login' | 'signup';
 

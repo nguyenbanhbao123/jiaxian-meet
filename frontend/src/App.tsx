@@ -3,7 +3,7 @@ import MeetHome from "./components/MeetHome";
 import WatchRoom from "./components/WatchRoom";
 import SignUp from "./components/Auth";
 import Guide from "./components/Guide";
-import type { AuthUser } from "./components/home/Avatar";
+import type { AuthUser } from "./api/auth"
 
 type Page = "home" | "watch-room" | "sign-up" | "login";
 type Route = { page: Page; guide: boolean };
@@ -31,8 +31,14 @@ export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const previous = useRef(route);
 
-  function handleAuthSuccess(loggedInUser: AuthUser) {
-    setUser(loggedInUser);
+  function handleAuthSuccess(payload: unknown) {
+    const obj = (payload && typeof payload === "object" ? payload : {}) as Record<string, any>;
+    const raw = (obj.user ?? obj.data ?? obj) as Record<string, any>;
+    setUser({
+      id: Number(raw.id ?? 0),
+      username: String(raw.username ?? raw.user_name ?? raw.name ?? ""),
+      avatarUrl: raw.avatarUrl ?? raw.avatar_url ?? null,
+    });
     location.hash = "home";
   }
 

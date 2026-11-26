@@ -1,10 +1,5 @@
 import { useState } from "react";
-
-export type AuthUser = {
-  id: number;
-  username: string;
-  avatarUrl?: string | null;
-};
+import { AuthUser } from "../../api/auth"
 
 type Props = {
   user: AuthUser;
@@ -13,7 +8,8 @@ type Props = {
 
 export default function Avatar({ user, onLogout }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const initial = user.username.trim().charAt(0).toUpperCase() || "?";
+  if (!user) return null;
+  const initial = (user.username ?? "").trim().charAt(0).toUpperCase() || "?";
 
   return (
     <div className="relative">

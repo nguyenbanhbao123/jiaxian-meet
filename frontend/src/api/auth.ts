@@ -1,6 +1,11 @@
-import type { AuthUser } from "../components/home/Avatar";
 
 const API_BASE = "http://localhost:8080";
+
+export type AuthUser = {
+  id: number;
+  username: string;
+  avatarUrl?: string | null;
+};
 
 export type SignUpInput = {
   username: string;
@@ -28,15 +33,10 @@ async function postJson<T>(path: string, payload: unknown): Promise<T> {
 }
 
 export function signUp(input: SignUpInput): Promise<AuthUser> {
-  return postJson<AuthUser>("/create", input);
+  return postJson<AuthUser>("/register", input);
 }
 
 export async function login(input: LoginInput): Promise<AuthUser> {
-  const data = await postJson<any>("/login", input);
-
-  return {
-    id: data.id,
-    username: data.username ?? data.user_name ?? "",
-    avatarUrl: data.avatarUrl ?? data.avatar_url ?? null,
-  };
+  const data = await postJson<AuthUser>("/login", input);
+  return data;
 }
