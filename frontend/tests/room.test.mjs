@@ -322,6 +322,7 @@ test("direct Guide link, manual copy fallback and modal backdrop", async t => {
   await create.click();
   await page.evaluate(() => Object.defineProperty(navigator, "clipboard", {value:undefined}));
   await page.getByRole("button", {name:/Copy code/}).click();
+  await page.getByText(/Automatic copying isn’t available/).waitFor();
   const code = page.getByLabel("Sample room code");
   assert.deepEqual(await code.evaluate(el => [el.selectionStart,el.selectionEnd]), [0,11]);
   await page.mouse.click(1,1);
@@ -766,4 +767,99 @@ test("An abandoned login cannot replace a later registration", async t => {
   await (await fillAccountForm(page, true)).click();
   await page.waitForURL("**/#home");
   await button(page, profile.username + " account menu").getByText("M", {exact:true}).waitFor();
+});
+
+async function visitWithDeferredRooms(t) {
+  const page = await visit(t);
+  // Replace only the local adapter. Late replies deliberately ignore abort signals.
+  await page.route("**/src/components/home/roomOperations.ts*", route => route.fulfill({
+    contentType: "text/javascript",
+    body: `
+      window.roomCalls = [];
+      function defer(kind, signal, code) {
+        return new Promise((resolve, reject) => {
+          window.roomCalls.push({kind, signal, code, resolve, reject});
+        });
+      }
+      export const demoRoomOperations = {
+        createRoom: signal => defer("create", signal),
+        joinRoom: (code, signal) => defer("join", signal, code),
+      };
+    `,
+  }));
+  await page.reload();
+  await button(page, "Create Room").waitFor();
+  return page;
+}
+
+test("deferred creation blocks duplicates and retries with the returned invitation code", async t => {
+  const page = await visitWithDeferredRooms(t);
+  const create = button(page, "Create Room");
+  await create.evaluate(el => { el.click(); el.click(); });
+  await page.getByText("Creating the local demo room…").waitFor({state:"attached"});
+  assert.ok(await button(page, "Creating demo…").isDisabled());
+  assert.ok(await button(page, "Join Room").isDisabled());
+  assert.deepEqual(await page.evaluate(() => roomCalls.map(call => call.kind)), ["create"]);
+  await page.evaluate(() => roomCalls[0].reject(new Error("simulated failure")));
+  await page.getByRole("alert").waitFor();
+  assert.equal(await page.getByRole("dialog").count(), 0);
+  await create.click();
+  await page.evaluate(() => roomCalls[1].resolve("DEMO-ABC123"));
+  const code = page.getByLabel("Sample room code");
+  await code.waitFor();
+  assert.equal(await code.inputValue(), "DEMO-ABC123");
+  await button(page, "Enter Watch Room").click();
+  await page.waitForURL("**/#watch-room");
+});
+
+test("deferred join validates, cancels, ignores late results and retries after an error", async t => {
+  const page = await visitWithDeferredRooms(t);
+  const input = page.getByLabel("Room code", {exact:true});
+  const form = page.getByRole("form", {name:"Join room"});
+  await input.fill("bad");
+  await input.press("Enter");
+  assert.equal(await input.getAttribute("aria-invalid"), "true");
+  assert.equal(await page.evaluate(() => roomCalls.length), 0);
+  await input.fill(" demo-2seats ");
+  await form.evaluate(el => { el.requestSubmit(); el.requestSubmit(); });
+  assert.deepEqual(await page.evaluate(() => roomCalls.map(c => [c.kind, c.code])), [["join", "DEMO-2SEATS"]]);
+  assert.ok(await button(page, "Joining demo…").isDisabled());
+  await button(page, "Cancel demo join").click();
+  await page.getByText("Join canceled.").waitFor();
+  assert.ok(await focused(input));
+  assert.ok(await page.evaluate(() => roomCalls[0].signal.aborted));
+  await input.press("Enter");
+  await page.evaluate(() => roomCalls[0].resolve());
+  assert.ok(await button(page, "Joining demo…").isDisabled());
+  await page.evaluate(() => roomCalls[1].reject(new Error("simulated failure")));
+  await page.getByRole("alert").waitFor();
+  assert.equal(await input.inputValue(), " demo-2seats ");
+  await button(page, "Join Room").click();
+  await page.evaluate(() => roomCalls[2].resolve());
+  await page.waitForURL("**/#watch-room");
+});
+
+test("leaving Home invalidates outstanding creation and join results", async t => {
+  const page = await visitWithDeferredRooms(t);
+  await button(page, "Create Room").click();
+  await button(page, "Guide").click();
+  await button(page, "Back").click();
+  await button(page, "Create Room").click();
+  assert.ok(await page.evaluate(() => roomCalls[0].signal.aborted));
+  await page.evaluate(() => roomCalls[0].resolve("DEMO-STALE1"));
+  assert.equal(await page.getByRole("dialog").count(), 0);
+  assert.ok(await button(page, "Creating demo…").isDisabled());
+  await page.evaluate(() => roomCalls[1].resolve("DEMO-2SEATS"));
+  await button(page, "Close dialog").click();
+  const input = page.getByLabel("Room code", {exact:true});
+  await input.fill("demo-2seats");
+  await input.press("Enter");
+  await page.getByRole("link", {name:"Log In", exact:true}).click();
+  await page.getByRole("heading", {name:"Welcome back"}).waitFor();
+  assert.ok(await page.evaluate(() => roomCalls[2].signal.aborted));
+  await page.evaluate(() => roomCalls[2].resolve());
+  assert.equal(new URL(page.url()).hash, "#login");
+  await page.goBack();
+  await button(page, "Create Room").waitFor();
+  assert.equal(await page.getByRole("alert").count(), 0);
 });

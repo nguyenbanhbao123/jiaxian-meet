@@ -1,48 +1,34 @@
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { RoomIcon } from "../watch-room/RoomIcon";
 import { IconButton } from "../watch-room/RoomUI";
-import { DEMO_JOIN_DELAY_MS, DEMO_ROOM_CODE, validateDemoRoomCode } from "./demoRoom";
+import type { RoomOperations } from "./roomOperations";
+import { useRoomOperation } from "./useRoomOperation";
+import { DEMO_ROOM_CODE, validateDemoRoomCode } from "./demoRoom";
 
 export type JoinRoomFormProps = {
+  joinRoom: RoomOperations["joinRoom"];
   onJoinDemo: () => void;
   /** Block the form and cancel its simulation while a parent dialog is open. */
   disabled?: boolean;
 };
 
-type JoinPhase = "idle" | "joining" | "canceled";
-
-export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomFormProps) {
+export default function JoinRoomForm({ joinRoom, onJoinDemo, disabled = false }: JoinRoomFormProps) {
   const [code, setCode] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [phase, setPhase] = useState<JoinPhase>("idle");
+  const join = useRoomOperation<void>(!disabled);
+  const phase = join.state.status;
   const inputRef = useRef<HTMLInputElement>(null);
-  const timerRef = useRef<number | null>(null);
   const codeId = useId();
   const helpId = useId();
   const errorId = useId();
   const statusId = useId();
   const validation = validateDemoRoomCode(code);
-  const joining = phase === "joining";
+  const joining = phase === "pending";
   const showError = submitted && validation.state !== "valid";
-
-  const clearPendingJoin = useCallback(() => {
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    timerRef.current = null;
-  }, []);
-
-  // Leaving Home must never trigger a delayed navigation into the demo.
-  useEffect(() => clearPendingJoin, [clearPendingJoin]);
-
-  useEffect(() => {
-    if (disabled) {
-      clearPendingJoin();
-      setPhase("idle");
-    }
-  }, [disabled, clearPendingJoin]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (disabled || timerRef.current !== null) return;
+    if (disabled || joining || phase === "success") return;
     setSubmitted(true);
 
     if (validation.state !== "valid") {
@@ -50,22 +36,17 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
       return;
     }
 
-    setPhase("joining");
-    // Replace the demo timer with room lookup and enter after the server confirms the join.
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null;
-      setPhase("idle");
-      onJoinDemo();
-    }, DEMO_JOIN_DELAY_MS);
+    void join.run(signal => joinRoom(validation.normalizedCode, signal), onJoinDemo);
   }
 
   function cancelJoin() {
-    clearPendingJoin();
-    setPhase("canceled");
+    join.reset("canceled");
     inputRef.current?.focus();
   }
 
   let statusMessage = validation.state === "valid" ? validation.message : "";
+  if (phase === "error") statusMessage = "";
+  if (phase === "success") statusMessage = "Local demo ready.";
   if (joining) statusMessage = "Opening the local room…";
   if (phase === "canceled") statusMessage = "Join canceled.";
 
@@ -90,7 +71,7 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
             onChange={(event) => {
               if (joining) return;
               setCode(event.target.value);
-              setPhase("idle");
+              join.reset();
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && event.nativeEvent.isComposing) event.preventDefault();
@@ -106,7 +87,7 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
             className="min-h-11 min-w-0 flex-1 rounded-md bg-transparent text-base text-room-text placeholder:text-room-muted disabled:opacity-50"
           />
           {code && (
-            <IconButton label="Clear room code" disabled={joining || disabled} onClick={() => { setCode(""); setSubmitted(false); setPhase("idle"); inputRef.current?.focus(); }}>
+            <IconButton label="Clear room code" disabled={joining || disabled} onClick={() => { setCode(""); setSubmitted(false); join.reset(); inputRef.current?.focus(); }}>
               <RoomIcon name="close" className="h-4 w-4" />
             </IconButton>
           )}
@@ -126,6 +107,7 @@ export default function JoinRoomForm({ onJoinDemo, disabled = false }: JoinRoomF
         Try <code className="font-mono text-room-accent">{DEMO_ROOM_CODE}</code>.
       </p>
       <div className="mt-1">
+        {phase === "error" && <p role="alert" className="text-xs text-room-danger">Couldn’t open the local demo. Select Join Room to retry.</p>}
         {showError && <p id={errorId} role="alert" className="text-xs leading-relaxed text-room-danger">{validation.message}</p>}
         <p id={statusId} role="status" aria-atomic="true" className={`text-xs leading-relaxed ${validation.state === "valid" && phase === "idle" ? "text-room-success" : "text-room-muted"}`}>
           {statusMessage}

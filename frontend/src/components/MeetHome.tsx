@@ -1,11 +1,11 @@
-import { useState } from "react";
 import AppHeader, { GuideLink } from "./AppHeader";
 import type { AuthUser } from "../api/auth";
 import Avatar from "./home/Avatar";
 import HomeScene from "./home/HomeScene";
 import CreateRoomDialog from "./home/CreateRoomDialog";
 import JoinRoomForm from "./home/JoinRoomForm";
-import { DEMO_ROOM_CODE } from "./home/demoRoom";
+import { demoRoomOperations } from "./home/roomOperations";
+import { useRoomOperation } from "./home/useRoomOperation";
 import { RoomIcon } from "./watch-room/RoomIcon";
 import "./home/home.css";
 
@@ -18,7 +18,9 @@ type Props = {
 };
 
 export default function MeetHome({ active, user, onEnter, onGuide, onLogout }: Props) {
-  const [invitationOpen, setInvitationOpen] = useState(false);
+  const creation = useRoomOperation<string>(active);
+  const creating = creation.state.status === "pending";
+  const invitationOpen = creation.state.status === "success";
 
   return (
     <>
@@ -40,19 +42,22 @@ export default function MeetHome({ active, user, onEnter, onGuide, onLogout }: P
           <div className="home-art"><HomeScene /></div>
           <div className="ticket-body">
             <h1 id="home-title">Watch room</h1>
-            <button type="button" className="room-button-primary w-full" aria-haspopup="dialog" onClick={() => setInvitationOpen(true)}>
-              <RoomIcon name="plus" />Create Room
+            <button type="button" className="room-button-primary w-full" aria-haspopup="dialog" aria-disabled={creating} aria-busy={creating} onClick={() => creation.run(demoRoomOperations.createRoom)}>
+              <RoomIcon name="plus" />{creating ? "Creating demo…" : "Create Room"}
             </button>
-            <JoinRoomForm onJoinDemo={onEnter} disabled={invitationOpen || !active} />
+            <span role="status" className="sr-only">{creating ? "Creating the local demo room…" : ""}</span>
+            {creation.state.status === "error" && (
+              <p role="alert" className="mt-2 text-xs text-room-danger">Couldn’t create the local demo. Select Create Room to retry.</p>
+            )}
+            <JoinRoomForm joinRoom={demoRoomOperations.joinRoom} onJoinDemo={onEnter} disabled={creating || invitationOpen || !active} />
           </div>
           <p className="ticket-stub"><RoomIcon name="ticket" />Local demo · No shared connection</p>
         </section>
       </main>
-      {/* Supply the room code returned by room creation here when the backend is connected. */}
-      {active && invitationOpen && (
+      {active && creation.state.status === "success" && (
         <CreateRoomDialog
-          sampleRoomCode={DEMO_ROOM_CODE}
-          onClose={() => setInvitationOpen(false)}
+          sampleRoomCode={creation.state.value}
+          onClose={() => creation.reset()}
           onEnterWatchRoom={onEnter}
         />
       )}
