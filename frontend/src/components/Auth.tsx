@@ -1,6 +1,6 @@
 import AuthForm, { type AuthMode } from "./auth/AuthForm";
 import HeroSection from "./auth/HeroSection";
-import type { AuthUser } from "./home/Avatar";
+import type { AuthUser } from "../api/auth";
 
 type Props = {
   mode: AuthMode;

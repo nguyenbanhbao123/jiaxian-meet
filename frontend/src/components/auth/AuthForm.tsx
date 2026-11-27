@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { AuthUser, login, signUp } from '../../api/auth';
+import { useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { type AuthUser, login, signUp } from '../../api/auth';
 
 export type AuthMode = 'login' | 'signup';
 
@@ -15,6 +15,18 @@ export default function AuthForm({ mode, onAuthSuccess }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const pending = useRef<AbortController | null>(null);
+
+  useLayoutEffect(() => {
+    setSubmitting(false);
+    setError(null);
+    // A response from the previous form must not redirect the current page.
+    return () => {
+      pending.current?.abort();
+      pending.current = null;
+    };
+  }, [mode]);
+
   function setMode(next: AuthMode) {
     setError(null);
     window.location.hash = next === 'login' ? 'login' : 'sign-up';
@@ -22,20 +34,26 @@ export default function AuthForm({ mode, onAuthSuccess }: Props) {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (pending.current) return;
+    const request = new AbortController();
+    pending.current = request;
     setError(null);
     setSubmitting(true);
 
     try {
       const user =
         mode === 'signup'
-          ? await signUp({ username: username.trim(), email: email.trim(), password })
-          : await login({ username: username.trim(), password });
+          ? await signUp({ username: username.trim(), email: email.trim(), password }, request.signal)
+          : await login({ username: username.trim(), password }, request.signal);
 
-      onAuthSuccess(user);
+      if (!request.signal.aborted) onAuthSuccess(user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
+      if (!request.signal.aborted) setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
-      setSubmitting(false);
+      if (pending.current === request) {
+        pending.current = null;
+        setSubmitting(false);
+      }
     }
   }
 
@@ -70,7 +88,10 @@ export default function AuthForm({ mode, onAuthSuccess }: Props) {
         {mode === 'signup' ? 'Create your account' : 'Welcome back'}
       </h1>
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <span role="status" className="sr-only">
+        {submitting && (mode === 'signup' ? 'Creating your account…' : 'Logging in…')}
+      </span>
+      <form className="space-y-4" aria-busy={submitting} onSubmit={handleSubmit}>
         {/* Username Input */}
         <div className="space-y-1">
           <label htmlFor="auth-text" className="text-sm text-gray-300">Username</label>

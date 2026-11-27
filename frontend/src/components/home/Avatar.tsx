@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AuthUser } from "../../api/auth"
+import type { AuthUser } from "../../api/auth";
 
 type Props = {
   user: AuthUser;
@@ -8,8 +8,8 @@ type Props = {
 
 export default function Avatar({ user, onLogout }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
-  if (!user) return null;
-  const initial = (user.username ?? "").trim().charAt(0).toUpperCase() || "?";
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+  const initial = user.username.trim().charAt(0).toUpperCase();
 
   return (
     <div className="relative">
@@ -20,10 +20,11 @@ export default function Avatar({ user, onLogout }: Props) {
         aria-expanded={menuOpen}
         className="flex items-center gap-2 rounded-full p-0.5 transition hover:opacity-85 focus:outline-none focus:ring-2 focus:ring-white/40"
       >
-        {user.avatarUrl ? (
+        {user.avatarUrl && user.avatarUrl !== failedImage ? (
           <img
             src={user.avatarUrl}
             alt={user.username}
+            onError={() => setFailedImage(user.avatarUrl)}
             className="h-8 w-8 rounded-full object-cover border border-white/20"
           />
         ) : (

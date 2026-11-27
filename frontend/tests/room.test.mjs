@@ -6,6 +6,7 @@ import { chromium } from "playwright-core";
 import { createServer } from "vite";
 
 const clip = fileURLToPath(new URL("./fixtures/local-video.webm", import.meta.url));
+const accountApi = "http://localhost:8080";
 let server, browser, origin;
 
 before(async () => {
@@ -24,6 +25,13 @@ after(async () => {
 async function visit(t, hash = "", width = 1280, height = 720) {
   const context = await browser.newContext({ viewport: { width, height } });
   t.after(() => context.close());
+  // Account tests install page-level mocks. Never send test credentials to a running backend.
+  const unexpectedApiRequests = [];
+  await context.route(accountApi + "/**", route => {
+    unexpectedApiRequests.push(route.request().url());
+    return route.abort();
+  });
+  t.after(() => assert.deepEqual(unexpectedApiRequests, []));
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -389,11 +397,14 @@ for (const [width, height] of [[1440, 900], [390, 844], [320, 568]]) {
     await heading("Create your account").waitFor();
     await page.getByRole("button", {name:"Log In", exact:true}).last().click();
     await heading("Welcome back").waitFor();
+    await page.route(accountApi + "/login", route => route.fulfill({status: 401, json: {error: "username or password is incorrect"}}));
+    await page.route(accountApi + "/register", route => route.fulfill({status: 409, json: {error: "username or email is already in use"}}));
     const requests = [];
     page.on("request", r => { if (["xhr","fetch","document"].includes(r.resourceType())) requests.push(r.url()); });
     await page.getByLabel("Username", {exact:true}).fill("Viewer");
     await page.getByLabel("Password", {exact:true}).fill("local-test-example");
     await page.locator("form button[type=submit]").click();
+    await page.getByText("Incorrect username or password.", {exact:true}).waitFor();
     for (const provider of ["Google","Apple"]) await page.getByRole("button", {name: new RegExp("Continue with " + provider + "$")}).click();
     await heading("Welcome back").waitFor();
     await button(page,"Sign Up").first().click();
@@ -401,7 +412,8 @@ for (const [width, height] of [[1440, 900], [390, 844], [320, 568]]) {
     await page.getByLabel("Email Address").fill("viewer@example.invalid");
     await button(page,"Create Account").click();
     await heading("Create your account").waitFor();
-    assert.deepEqual(requests, []);
+    await page.getByText("That username or email is already in use.").waitFor();
+    assert.deepEqual(requests, [accountApi + "/login", accountApi + "/register"]);
     await button(page,"Log In").first().click();
     await link("Forgot password?").click();
     await button(page,"Create Room").waitFor();
@@ -644,4 +656,114 @@ test("Player adjustments update local media and reset preserves the session", as
     return v.currentSrc && v.currentSrc !== old && v.duration > 0;
   }, initial[0]);
   assert.deepEqual(await values(), defaults);
+});
+
+const credentials = {username: "mock_viewer", password: "synthetic-test-only"};
+const profile = {id: 17, username: "MockViewer", email: "viewer@example.invalid", avatar_url: null};
+
+async function fillAccountForm(page, register = false) {
+  await page.getByLabel("Username", {exact: true}).fill(credentials.username);
+  if (register) await page.getByLabel("Email Address").fill(profile.email);
+  await page.getByLabel("Password", {exact: true}).fill(credentials.password);
+  return page.locator("form button[type=submit]");
+}
+
+for (const register of [true, false]) {
+  const endpoint = register ? "/register" : "/login";
+  test(`Mock ${endpoint} normalizes the returned account and keeps it in memory`, async t => {
+    const page = await visit(t, register ? "#sign-up" : "#login");
+    const avatarUrl = origin + "mock-avatar.svg";
+    await page.route(avatarUrl, route => route.fulfill({
+      contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"/>'
+    }));
+    const user = {...profile, avatar_url: register ? avatarUrl : null};
+    const payloads = [];
+    let reply;
+    const pending = new Promise(resolve => { reply = resolve; });
+    await page.route(accountApi + endpoint, async route => {
+      payloads.push([route.request().method(), route.request().postDataJSON()]);
+      await pending;
+      await route.fulfill({status: register ? 201 : 200, json: register ? user : {message: "Login successful", user}});
+    });
+
+    const submit = await fillAccountForm(page, register);
+    const requestStarted = page.waitForRequest(accountApi + endpoint);
+    // Submit twice in the same turn, before React can disable the button.
+    await page.locator("form").evaluate(form => { form.requestSubmit(); form.requestSubmit(); });
+    await requestStarted;
+    assert.ok(await submit.isDisabled());
+    assert.equal(await page.locator("form").getAttribute("aria-busy"), "true");
+    assert.match(await page.getByRole("status").innerText(), register ? /Creating/ : /Logging in/);
+    reply();
+
+    await page.waitForURL("**/#home");
+    assert.deepEqual(payloads, [["POST", register ? {...credentials, email: profile.email} : credentials]]);
+    const account = button(page, profile.username + " account menu");
+    await account.waitFor();
+    if (register) {
+      const img = account.getByRole("img", {name: profile.username});
+      assert.equal(await img.getAttribute("src"), avatarUrl);
+      await page.waitForFunction(() => document.querySelector(".home-nav img")?.naturalWidth > 0);
+    } else assert.equal(await account.innerText(), "M");
+    await account.click();
+    await page.getByText(profile.username, {exact:true}).waitFor();
+    if (register) await button(page, "Log Out").click();
+    else await page.reload();
+    await page.getByRole("link", {name:"Log In", exact:true}).waitFor();
+    assert.equal(await account.count(), 0);
+  });
+}
+
+const unexpected = "The account service returned an unexpected response. Please try again.";
+for (const [name, endpoint, mock, message] of [
+  ["bad credentials", "/login", {status: 401, json: {error: "username or password is incorrect"}}, "Incorrect username or password."],
+  ["duplicate account", "/register", {status: 409, json: {error: "username or email is already in use"}}, "That username or email is already in use."],
+  ["validation error", "/register", {status: 400, json: {error: "password must be at least 6 characters"}}, "password must be at least 6 characters"],
+  ["network failure", "/login", null, "Could not reach the account service. Check your connection and try again."],
+  ["non-JSON response", "/login", {status: 200, contentType: "text/html", body: "<html>Unavailable</html>"}, unexpected],
+  ["missing ID", "/register", {status: 201, json: {username: "Viewer", email: profile.email}}, unexpected],
+  ["invalid avatar type", "/login", {status: 200, json: {message: "ok", user: {...profile, avatar_url: 7}}}, unexpected],
+  ["wrong login envelope", "/login", {status: 200, json: profile}, unexpected],
+]) {
+  test("Mock account error preserves the form: " + name, async t => {
+    const register = endpoint === "/register";
+    const hash = register ? "#sign-up" : "#login";
+    const page = await visit(t, hash);
+    await page.route(accountApi + endpoint, route => mock ? route.fulfill(mock) : route.abort("failed"));
+    const submit = await fillAccountForm(page, register);
+    await submit.click();
+    const alert = page.getByRole("alert");
+    await alert.waitFor();
+    assert.equal(await alert.innerText(), message);
+    assert.equal(await page.getByLabel("Username", {exact:true}).inputValue(), credentials.username);
+    assert.equal(await page.getByLabel("Password", {exact:true}).inputValue(), credentials.password);
+    if (register) assert.equal(await page.getByLabel("Email Address").inputValue(), profile.email);
+    assert.equal(new URL(page.url()).hash, hash);
+    assert.ok(await submit.isEnabled());
+  });
+}
+
+test("An abandoned login cannot replace a later registration", async t => {
+  const page = await visit(t, "#login");
+  let release;
+  const delayed = new Promise(resolve => { release = resolve; });
+  await page.route(accountApi + "/login", async route => {
+    await delayed;
+    await route.fulfill({json: {message: "ok", user: profile}});
+  });
+  const requestStarted = page.waitForRequest(accountApi + "/login");
+  await (await fillAccountForm(page)).click();
+  await requestStarted;
+  const canceled = page.waitForEvent("requestfailed", r => r.url() === accountApi + "/login");
+  await button(page, "Sign Up").first().click();
+  await page.getByRole("heading", {name:"Create your account"}).waitFor();
+  release();
+  await canceled;
+  assert.ok(await button(page, "Create Account").isEnabled());
+  assert.equal(await page.getByRole("alert").count(), 0);
+  await page.route(accountApi + "/register", route => route.fulfill({status: 201, json: {...profile, avatar_url: origin + "broken-avatar.png"}}));
+  await page.route(origin + "broken-avatar.png", route => route.fulfill({status:404, body:""}));
+  await (await fillAccountForm(page, true)).click();
+  await page.waitForURL("**/#home");
+  await button(page, profile.username + " account menu").getByText("M", {exact:true}).waitFor();
 });
