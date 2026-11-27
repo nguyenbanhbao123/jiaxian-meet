@@ -1,0 +1,10 @@
+build/
+.env
+.git/
+.gitignore
+*.o
+CMakeCache.txt
+CMakeFiles/
+Dockerfile
+.dockerignore
+docker-compose.yml

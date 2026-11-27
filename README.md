@@ -37,9 +37,7 @@ jiaxian-meet-git/
     └── vite.config.ts
 ```
 
-The existing backend service reference, `backend/` (setup not documented yet),
-is retained. That directory is not present in this checkout, so it is not shown
-as an existing directory above. See [Backend](#backend).
+See [Backend](#backend).
 
 ## Requirements
 
@@ -152,10 +150,67 @@ The build writes to `frontend/dist`. Tests start and close a local test server a
 
 ## Backend
 
-Setup instructions for the `backend` folder have not been added yet.
+The backend service is built with **C++20 (Drogon)** and **PostgreSQL 16 (`libpqxx`)**, orchestrated via Docker Compose.
 
-The `backend/` reference is preserved from the original project documentation.
-This checkout does not include that directory or backend setup instructions.
-The backend teammate remains responsible for room creation and invitations,
-code verification and joining, file transfer/sharing, synchronization, and voice
-communication. The frontend demos described above do not implement those services.
+### Architecture & Directory Layout
+
+```text
+jiaxian-meet/
+├── docker-compose.yml        # Orchestrates postgres and backend services
+├── migrations/
+│   ├── 001_init.sql          # Initial schema (users, user_sessions, rooms, room_participants, chat_messages)
+│   └── 002_seed.sql          # Optional development seed data with hashed credentials
+└── backend/
+    ├── Dockerfile            # Multi-stage C++20 / Drogon build
+    ├── include/              # Public headers (.h): class and function declarations, no logic
+    └── src/                  # Implementations (.cpp): business logic, DB access, routing, main.cpp
+```
+
+### Configuration
+
+| Area | Details |
+| --- | --- |
+| **Listener** | Drogon binds to `0.0.0.0:8080` inside the container. Port `8080:8080` is published so the Vite frontend (`http://localhost:5173`) can reach the API. |
+| **Database host** | Inside Docker, the backend connects to PostgreSQL via the service hostname `postgres`, not `localhost`. |
+| **Healthcheck** | `postgres` runs `pg_isready` every 5 seconds. `backend` waits on `condition: service_healthy` before starting, which prevents connection-refused errors at boot. |
+| **Upload staging** | Multipart uploads are spooled to `/app/uploads`, which is owned by the non-root `appuser`, avoiding `EACCES` errors. |
+
+### Getting Started
+
+From the repository root (where `docker-compose.yml` lives), build and start the stack in detached mode:
+
+```bash
+docker compose up --build -d
+```
+
+Once running:
+
+- Backend API: `http://localhost:8080`
+- PostgreSQL: `localhost:5432` (or `postgres:5432` on the internal Docker network)
+
+Check service health and logs:
+
+```bash
+docker compose ps
+docker compose logs -f backend postgres
+```
+
+### Database Migrations & Seeding
+
+PostgreSQL runs every `.sql` file mounted in `/docker-entrypoint-initdb.d/` in alphabetical order (`001_init.sql`, then `002_seed.sql`), **only when initializing a fresh database volume**.
+
+> **Note:** Make sure `./migrations/001_init.sql` exists as a regular file before running `docker compose up`. Otherwise Docker creates an empty directory at that path.
+
+If you change `001_init.sql` or `002_seed.sql`, wipe the persistent `pgdata` volume and rebuild so initialization runs again:
+
+```bash
+docker compose down -v --rmi local --remove-orphans
+docker compose up --build -d
+```
+
+### Backend Troubleshooting
+
+- **`Error 13: Permission denied` on upload:** make sure `/app/uploads` exists and is owned by `appuser` in the Dockerfile (`mkdir -p /app/uploads && chown -R appuser:appuser /app`). If you mount a volume there, recreate it with `docker compose down -v`, since old volumes keep their previous ownership.
+- **`invalid compose project: undefined volume pgdata`:** declare `pgdata:` under a top-level `volumes:` key at column 0, aligned with `services:`.
+- **`dependency failed to start: container ... has no healthcheck configured`:** every service used with `condition: service_healthy` needs a `healthcheck:` block.
+- **Frontend can't reach the API:** confirm the `8080:8080` port mapping, that Drogon listens on `0.0.0.0`, and that CORS allows `http://localhost:5173` (or add a Vite `/api` proxy).
