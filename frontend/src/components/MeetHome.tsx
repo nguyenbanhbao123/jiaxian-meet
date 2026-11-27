@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AppHeader, { GuideLink } from "./AppHeader";
-import Avatar, { AuthUser } from "./home/Avatar";
+import type { AuthUser } from "../api/auth";
+import Avatar from "./home/Avatar";
 import HomeScene from "./home/HomeScene";
 import CreateRoomDialog from "./home/CreateRoomDialog";
 import JoinRoomForm from "./home/JoinRoomForm";
