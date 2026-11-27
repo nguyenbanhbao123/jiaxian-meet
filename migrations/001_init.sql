@@ -57,12 +57,6 @@ CREATE TABLE IF NOT EXISTS rooms (
 
 CREATE INDEX IF NOT EXISTS idx_rooms_host_id ON rooms(host_id);
 
-DROP TRIGGER IF EXISTS set_rooms_updated_at ON rooms;
-CREATE TRIGGER set_rooms_updated_at
-BEFORE UPDATE ON rooms
-FOR EACH ROW
-EXECUTE FUNCTION trigger_set_updated_at();
-
 -- Room Participants
 CREATE TABLE IF NOT EXISTS room_participants (
   room_id    BIGINT      NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
@@ -81,7 +75,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   content     TEXT        NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ DEFAULT NULL,
-  deleted_at  TIMESTAMPTZ DEFAULT NULL
+  deleted_at  TIMESTAMPTZ DEFAULT NULL,
 
   CONSTRAINT chk_message_not_empty CHECK (char_length(trim(content)) > 0)
 );
