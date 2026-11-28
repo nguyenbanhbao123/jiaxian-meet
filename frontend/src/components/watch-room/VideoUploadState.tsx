@@ -2,12 +2,9 @@ import { useId } from "react";
 import { RoomIcon, type RoomIconName } from "./RoomIcon";
 import "./video-upload-state.css";
 
-export type VideoUploadStatus =
-  | { kind: "empty" }
-  | { kind: "uploading"; fileName: string; progress: number }
-  | { kind: "ready"; fileName: string }
-  | { kind: "error"; fileName?: string; message: string }
-  | { kind: "waiting-for-host"; hostName: string };
+import { normalizeProgress, type VideoUploadStatus } from "./mediaPreparation";
+
+export type { VideoUploadStatus } from "./mediaPreparation";
 
 export type VideoUploadStateProps = {
   status: VideoUploadStatus;
@@ -20,6 +17,7 @@ export type VideoUploadStateProps = {
 };
 
 const STATE_DETAILS: Record<VideoUploadStatus["kind"], { title: string; icon: RoomIconName }> = {
+  canceled: { title: "Preparation canceled", icon: "close" },
   empty: { title: "No video selected", icon: "film" },
   uploading: { title: "Uploading video", icon: "upload" },
   ready: { title: "Ready for playback", icon: "check" },
@@ -33,12 +31,13 @@ export default function VideoUploadState({ status, isDemoPreview, onSelect, onCa
   const progressId = useId();
   const details = STATE_DETAILS[status.kind];
   const iconTone = status.kind === "error" ? "text-room-danger" : status.kind === "ready" ? "text-room-success" : "text-room-accent";
-  const progress = status.kind === "uploading" && Number.isFinite(status.progress)
-    ? Math.round(Math.min(100, Math.max(0, status.progress)))
-    : 0;
+  const progress = status.kind === "uploading" ? normalizeProgress(status.progress) : 0;
   let description: string;
 
   switch (status.kind) {
+    case "canceled":
+      description = isDemoPreview ? "The sample operation was canceled." : "You can retry this file.";
+      break;
     case "empty":
       description = isDemoPreview
         ? "Preview the moment before a video is chosen. The sample button uses mock data only."
@@ -104,7 +103,7 @@ export default function VideoUploadState({ status, isDemoPreview, onSelect, onCa
         {status.kind === "empty" && <button type="button" className="room-button-primary w-full sm:w-auto" onClick={onSelect}><RoomIcon name="upload" className="h-4 w-4" />{isDemoPreview ? "Use sample video" : "Choose a video"}</button>}
         {status.kind === "uploading" && <button type="button" className="room-secondary-button w-full sm:w-auto" onClick={onCancel}>{isDemoPreview ? "Cancel demo upload" : "Cancel upload"}</button>}
         {status.kind === "ready" && <button type="button" className="room-button-primary w-full sm:w-auto" onClick={onReturn}>{isDemoPreview ? "Return to local player" : "Continue"}<RoomIcon name="arrow" className="h-4 w-4" /></button>}
-        {status.kind === "error" && <button type="button" className="room-button-primary w-full sm:w-auto" onClick={onRetry}>{isDemoPreview ? "Retry demo" : "Try again"}<RoomIcon name="arrow" className="h-4 w-4" /></button>}
+        {(status.kind === "error" || status.kind === "canceled") && <button type="button" className="room-button-primary w-full sm:w-auto" onClick={onRetry}>{isDemoPreview ? "Retry demo" : "Try again"}<RoomIcon name="arrow" className="h-4 w-4" /></button>}
         {status.kind === "waiting-for-host" && <button type="button" className="room-secondary-button w-full sm:w-auto" onClick={onReturn}>{isDemoPreview ? "Exit preview" : "Go back"}</button>}
       </div>
     </section>

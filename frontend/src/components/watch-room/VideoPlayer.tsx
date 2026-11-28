@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
+import type { PlaybackIntent } from "./playbackSync";
 import PlayerSettings, { playbackDefaults } from "./PlayerSettings";
 import { RoomIcon } from "./RoomIcon";
 import { IconButton } from "./RoomUI";
@@ -19,7 +20,15 @@ function progressStyle(value: number): CSSProperties {
   return { "--range-progress": `${value}%` } as CSSProperties;
 }
 
-export default function VideoPlayer({ active, theater, onToggleTheater }: { active: boolean; theater: boolean; onToggleTheater: () => void }) {
+type Props = {
+  active: boolean;
+  theater: boolean;
+  onToggleTheater: () => void;
+  onFileSelected?: (file: File) => void;
+  onPlaybackIntent?: (intent: PlaybackIntent) => void;
+};
+
+export default function VideoPlayer({ active, theater, onToggleTheater, onFileSelected, onPlaybackIntent }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -78,7 +87,9 @@ export default function VideoPlayer({ active, theater, onToggleTheater }: { acti
       setNotice("");
     } catch {
       setNotice("This file couldn’t be opened. Please choose it again.");
+      return;
     }
+    onFileSelected?.(file);
   }
 
   async function togglePlay() {
@@ -86,16 +97,21 @@ export default function VideoPlayer({ active, theater, onToggleTheater }: { acti
     if (!video || !ready) return;
     if (!video.paused) {
       video.pause();
+      onPlaybackIntent?.({ kind: "pause" });
       return;
     }
 
     try {
       await video.play();
-      setNotice("");
     } catch (failure) {
       // Pausing or replacing a file can interrupt a pending play request.
       if (failure instanceof DOMException && failure.name === "AbortError") return;
-      setNotice("Playback couldn’t start. Try again or choose another browser-supported video.");
+      if (videoRef.current === video) setNotice("Playback couldn’t start. Try again or choose another browser-supported video.");
+      return;
+    }
+    if (videoRef.current === video && !video.paused) {
+      setNotice("");
+      onPlaybackIntent?.({ kind: "play" });
     }
   }
 
@@ -107,6 +123,7 @@ export default function VideoPlayer({ active, theater, onToggleTheater }: { acti
     if (!videoRef.current) return;
     videoRef.current.currentTime = seconds;
     setCurrentTime(seconds);
+    onPlaybackIntent?.({ kind: "seek", seconds });
   }
 
   function toggleMute() {
