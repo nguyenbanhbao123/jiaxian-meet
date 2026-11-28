@@ -863,3 +863,118 @@ test("leaving Home invalidates outstanding creation and join results", async t =
   await button(page, "Create Room").waitFor();
   assert.equal(await page.getByRole("alert").count(), 0);
 });
+
+test("media preparation clamps progress and ignores callbacks from superseded attempts", async t => {
+  const page = await visit(t);
+  const result = await page.evaluate(async () => {
+    const {createMediaPreparation} = await import("/src/components/watch-room/mediaPreparation.ts");
+    const states = [];
+    const media = createMediaPreparation(state => states.push(state));
+    const firstFile = new File([], "same.mp4");
+    const first = media.begin(firstFile);
+    const duplicate = media.begin(firstFile);
+    for (const value of [-8, 23.6, 140, NaN, Infinity]) first.progress(value);
+    // Release this successful reply only after a different file with the same name was selected.
+    let release;
+    const lateReply = new Promise(resolve => { release = resolve; }).then(() => {
+      first.progress(55);
+      first.ready();
+      first.fail("obsolete");
+    });
+    const second = media.begin(new File([], firstFile.name));
+    release();
+    await lateReply;
+    media.cancel();
+    second.progress(85);
+    second.ready();
+    const third = media.begin(firstFile);
+    third.fail("mock failure");
+    const retry = media.begin(firstFile);
+    retry.ready();
+    retry.progress(12);
+    return {states, duplicate, replaced: first.signal.aborted, canceled: second.signal.aborted};
+  });
+  assert.equal(result.duplicate, null);
+  assert.ok(result.replaced && result.canceled);
+  assert.deepEqual(result.states.map(s => s.kind === "uploading" ? s.progress : s.kind),
+    [0, 0, 24, 100, 0, 0, 0, "canceled", 0, "error", 0, "ready"]);
+  assert.equal(result.states.at(-3).message, "mock failure");
+});
+
+test("closing the diagnostic dialog invalidates pending preparation callbacks", async t => {
+  const page = await visit(t, "?diagnostics=1#watch-room");
+  // Observe the real controller through the dialog's mount and cleanup.
+  await page.route("**/src/components/watch-room/mediaPreparation.ts", route => route.fulfill({
+    contentType: "text/javascript", body: `
+      import { createMediaPreparation as create } from "./mediaPreparation.ts?original";
+      export { normalizeProgress } from "./mediaPreparation.ts?original";
+      export function createMediaPreparation(publish) {
+        const media = create(state => { window.updates++; publish(state); });
+        return { ...media, begin(file) {
+          const attempt = media.begin(file);
+          window.lastAttempt = attempt;
+          return attempt;
+        }};
+      }
+    `,
+  }));
+  await page.reload();
+  await page.evaluate(() => { window.updates = 0; });
+  const open = button(page, "Preview video UI states");
+  await open.click();
+  await button(page, "Use sample video").click();
+  const state = page.getByLabel("Preview state");
+  await button(page, "Cancel demo upload").click();
+  assert.equal(await state.inputValue(), "canceled");
+  assert.ok(await focused(state));
+  await button(page, "Retry demo").click();
+  const updates = await page.evaluate(() => window.updates);
+  await page.keyboard.press("Escape");
+  assert.ok(await focused(open));
+  assert.ok(await page.evaluate(() => window.lastAttempt.signal.aborted));
+  await page.evaluate(() => {
+    window.lastAttempt.progress(75);
+    window.lastAttempt.fail("late failure");
+    window.lastAttempt.ready();
+  });
+  assert.equal(await page.evaluate(() => window.updates), updates);
+  await open.click();
+  assert.equal(await state.inputValue(), "empty");
+});
+
+test("previewing every synchronization state leaves local media and preferences intact", async t => {
+  const page = await visit(t, "?diagnostics=1#watch-room", 390, 844);
+  await page.getByLabel("Choose a local video file").setInputFiles(clip);
+  await page.waitForFunction(() => document.querySelector("video")?.duration > 0);
+  await page.getByRole("slider", {name:"Video volume"}).press("ArrowLeft");
+  await page.getByRole("slider", {name:"Video timeline"}).press("ArrowRight");
+  await button(page, "Playback settings").click();
+  const panel = page.getByRole("dialog", {name:"Playback settings"});
+  await panel.getByRole("button", {name:/Playback speed/}).click();
+  await panel.getByRole("slider", {name:"Playback speed"}).press("ArrowRight");
+  await button(panel, "Back to playback settings").click();
+  await panel.getByRole("button", {name:/Brightness/}).click();
+  await panel.getByRole("slider", {name:"Brightness"}).press("Home");
+  await button(panel, "Back to playback settings").click();
+  await button(panel, "Loop video").click();
+  await page.keyboard.press("Escape");
+  const readMedia = () => page.locator("video").evaluate(v =>
+    [v.currentSrc, v.currentTime, v.paused, v.volume, v.muted, v.playbackRate, v.loop, getComputedStyle(v).filter]);
+  const original = await readMedia();
+  assert.deepEqual(original.slice(-3), [1.25, true, "brightness(0.5)"]);
+  const open = button(page, "Preview video UI states");
+  await open.click();
+  const sync = page.getByRole("combobox", {name:/Playback sync preview/});
+  const states = ["local-only", "connecting", "connected", "synchronizing", "disconnected", "reconnecting", "error"];
+  assert.equal(await sync.inputValue(), "local-only");
+  assert.deepEqual(await sync.locator("option").evaluateAll(opts => opts.map(option => option.value)), states);
+  for (const state of states) {
+    await sync.selectOption(state);
+    assert.equal(await sync.inputValue(), state);
+    assert.deepEqual(await readMedia(), original);
+  }
+  await sync.press("Escape");
+  assert.ok(await focused(open));
+  await open.click();
+  assert.equal(await sync.inputValue(), "local-only");
+});
